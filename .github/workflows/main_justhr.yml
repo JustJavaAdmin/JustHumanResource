@@ -55,6 +55,13 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_455B7CA117C64C1F89AE84C707040C63 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_22B204B6745A4BDE9DEB01C94A01E729 }}
 
+      - name: List downloaded artifact files
+        run: |
+          echo "=== Workspace Root ==="
+          ls -la ${{ github.workspace }}
+          echo "=== Recursive Target Search ==="
+          find ${{ github.workspace }} -type f \( -name "*.jar" -o -name "*.war" -o -name "*.zip" \)
+            
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
