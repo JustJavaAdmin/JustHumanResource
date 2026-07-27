@@ -138,7 +138,7 @@ jobs:
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'justhr-cvd6fmbhfpc9dzdn' # Corrected to your actual App Service resource name
+          app-name: 'JustHR' # Corrected to your actual App Service resource name
           slot-name: 'Production'
           package: '${{ github.workspace }}/humanresource-0.0.1-SNAPSHOT.jar' # Simplified path
-          
+          # justhr-cvd6fmbhfpc9dzdn
