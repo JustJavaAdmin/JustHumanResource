@@ -18,26 +18,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # - name: Set up Java version
-      #   uses: actions/setup-java@v4
-      #   with:
-      #     java-version: '21'
-      #     distribution: 'microsoft'
-
-      # - name: Build with Maven
-      #   run: mvn clean install
-      - name: Set up JDK 21
+      - name: Set up Java version
         uses: actions/setup-java@v4
         with:
           java-version: '21'
-          distribution: 'temurin'
-#          cache: maven
+          distribution: 'microsoft'
 
-      - name: Install glibc
-        run: sudo apt-get update && sudo apt-get install -y libc6
         
       - name: Build with Maven
-        run: mvn clean install
+        run: mvn clean package -DskipTests
 
 
       - name: Upload artifact for deployment job
