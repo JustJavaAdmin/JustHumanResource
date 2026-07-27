@@ -134,6 +134,16 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_455B7CA117C64C1F89AE84C707040C63 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_22B204B6745A4BDE9DEB01C94A01E729 }}
               
+      - name: Check downloaded files
+        run: |
+            pwd
+            ls -lah
+            file humanresource-0.0.1-SNAPSHOT.jar
+
+      - name: Inspect JAR
+        run: |
+            jar tf humanresource-0.0.1-SNAPSHOT.jar | head -20
+      
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
