@@ -73,6 +73,46 @@
           border-bottom: 1px solid #e6e9ef;
           display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem;
         }
+        .payroll-check-cell { width: 42px; text-align: center; display: none; }
+        .payroll-table.select-mode .payroll-check-cell { display: table-cell; }
+        .payroll-select-checkbox {
+          width: 16px; height: 16px; accent-color: #1e3a8a; cursor: pointer;
+        }
+        .payroll-email-actions {
+          display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-left: auto;
+        }
+        .payroll-email-select-all {
+          display: inline-flex; align-items: center; gap: 6px;
+          font-size: 0.78rem; font-weight: 500; color: #2e3a4f;
+        }
+        .payroll-email-btn {
+          display: inline-flex; align-items: center; gap: 6px;
+          border: 1px solid #cdd9e9; background: #ffffff; color: #2f4b7c;
+          border-radius: 6px; padding: 0.45rem 0.8rem;
+          font-size: 0.8rem; font-weight: 600; cursor: pointer;
+          transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+          white-space: nowrap;
+        }
+        .payroll-email-btn:hover { background: #f0f4fc; border-color: #96b2d4; }
+        .payroll-email-btn.primary { background: #1e3a8a; border-color: #1e3a8a; color: #ffffff; }
+        .payroll-email-btn.primary:hover { background: #15306b; }
+        .payroll-email-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .payroll-email-results {
+          display: none; padding: 0.85rem 2rem; border-bottom: 1px solid #e6e9ef;
+          background: #ffffff;
+        }
+        .payroll-email-results.show { display: block; }
+        .payroll-email-summary { font-size: 0.82rem; font-weight: 700; color: #1f2a3e; margin-bottom: 0.5rem; }
+        .payroll-email-result-list { display: grid; gap: 0.4rem; max-height: 220px; overflow: auto; }
+        .payroll-email-result-row {
+          display: grid; grid-template-columns: 90px 1fr; gap: 0.75rem;
+          padding: 0.45rem 0.6rem; border: 1px solid #e6e9ef; border-radius: 6px;
+          font-size: 0.78rem; color: #4b5565;
+        }
+        .payroll-email-result-status { font-weight: 700; }
+        .payroll-email-result-status.sent { color: #166534; }
+        .payroll-email-result-status.skipped { color: #92400e; }
+        .payroll-email-result-status.failed { color: #991b1b; }
         .filter-select {
           background: #ffffff;
           border: 1px solid #d6dce5;
@@ -207,6 +247,8 @@
         .modal-btn.cancel { background: #f0f2f5; color: #4b5565; }
         .modal-btn.confirm { background: #b85c00; color: white; }
         .modal-btn.confirm:hover { background: #9e4b00; }
+        .modal-btn.confirm.email-confirm { background: #1e3a8a; }
+        .modal-btn.confirm.email-confirm:hover { background: #15306b; }
 
 
 
@@ -449,12 +491,36 @@
                         <option value="DRAFT">Draft</option>
                         <option value="FAILED">Failed</option>
                     </select>
+                    <div class="payroll-email-actions">
+                        <button type="button" id="toggleEmailSelectBtn" class="payroll-email-btn"
+                                onclick="toggleEmailSelectMode()">
+                            <i class="bi bi-envelope-paper"></i> Email Payslips
+                        </button>
+                        <label class="payroll-email-select-all" id="selectAllWrapper" style="display:none;">
+                            <input type="checkbox" id="selectAllCurrentPayslips" class="payroll-select-checkbox"
+                                   onchange="toggleCurrentPayslipSelection(this)">
+                            Select all
+                        </label>
+                        <button type="button" id="emailCurrentPayslipsBtn" class="payroll-email-btn primary"
+                                style="display:none;" onclick="openEmailConfirmModal()" disabled>
+                            <i class="bi bi-envelope-paper"></i> Email selected
+                        </button>
+                        <button type="button" id="cancelEmailSelectBtn" class="payroll-email-btn"
+                                style="display:none;" onclick="toggleEmailSelectMode()">
+                            Cancel
+                        </button>
+                    </div>
                 </div>
 
+                <div id="currentPayslipEmailResults" class="payroll-email-results"></div>
+
                 <div class="overflow-x-auto custom-scrollbar">
-                    <table class="payroll-table">
+                    <table class="payroll-table" id="currentPayrollTable">
                         <thead>
                         <tr>
+                            <th class="payroll-check-cell">
+                                <span class="sr-only">Select</span>
+                            </th>
                             <th>Employee</th>
                             <th>Payroll Date</th>
                             <th>Period</th>
@@ -469,6 +535,12 @@
                         <!-- Has records -->
                         <tbody th:if="${not #lists.isEmpty(payrollRuns)}" id="currentPayrollBody">
                         <tr th:each="run : ${payrollRuns}" th:attr="data-run-id=${run.id}">
+                            <td class="payroll-check-cell">
+                                <input type="checkbox" class="payroll-select-checkbox current-payslip-select"
+                                       th:value="${run.employee.id}"
+                                       th:attr="data-employee-name=${run.employee.firstName + ' ' + run.employee.lastName},data-email=${run.employee.email}"
+                                       onchange="updateCurrentPayslipEmailButton()">
+                            </td>
                             <td>
                                 <div class="flex items-center gap-3">
                                     <div class="emp-avatar"
@@ -520,7 +592,7 @@
                         <!-- Empty list -->
                         <tbody th:if="${#lists.isEmpty(payrollRuns)}">
                         <tr>
-                            <td colspan="8">
+                            <td colspan="9">
                                 <div class="empty-state">
                                     <i class="bi bi-inbox"></i>
                                     <p>No payroll records found for this period.</p>
@@ -809,54 +881,54 @@
     <th:block th:if="${previousPeriods != null}">
         <th:block th:each="entry : ${previousPeriods}">
             <th:block th:each="paySlip : ${entry.value}">
-        <div th:id="'psModal_slip_' + ${paySlip.id}" class="payslip-modal-overlay">
-            <div class="payslip-modal-container p-6">
+                <div th:id="'psModal_slip_' + ${paySlip.id}" class="payslip-modal-overlay">
+                    <div class="payslip-modal-container p-6">
 
-                <!-- Header -->
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
-                    <h3 style="font-size:1.1rem;font-weight:700;color:#1f2a3e;margin:0;">
-                        Payslip ·
-                        <span th:text="${#temporals.format(paySlip.payDate, 'MMMM yyyy')}">Month Year</span>
-                    </h3>
-                    <button class="ps-close-modal" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#95a3b3;line-height:1;">&times;</button>
-                </div>
+                        <!-- Header -->
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+                            <h3 style="font-size:1.1rem;font-weight:700;color:#1f2a3e;margin:0;">
+                                Payslip ·
+                                <span th:text="${#temporals.format(paySlip.payDate, 'MMMM yyyy')}">Month Year</span>
+                            </h3>
+                            <button class="ps-close-modal" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#95a3b3;line-height:1;">&times;</button>
+                        </div>
 
-                <!-- Payroll Period -->
-                <div style="border-bottom:1px solid #e6e9ef;padding-bottom:1rem;margin-bottom:1rem;">
-                    <p style="font-size:0.78rem;color:#6b788b;margin:0;">
-                        Payroll Period:
-                        <span th:text="${#temporals.format(paySlip.payDate, '01 MMM yyyy')}">01 Jan 2026</span>
-                        –
-                        <span th:text="${#temporals.format(paySlip.payDate, 'dd MMM yyyy')}">31 Jan 2026</span>
-                    </p>
-                </div>
+                        <!-- Payroll Period -->
+                        <div style="border-bottom:1px solid #e6e9ef;padding-bottom:1rem;margin-bottom:1rem;">
+                            <p style="font-size:0.78rem;color:#6b788b;margin:0;">
+                                Payroll Period:
+                                <span th:text="${#temporals.format(paySlip.payDate, '01 MMM yyyy')}">01 Jan 2026</span>
+                                –
+                                <span th:text="${#temporals.format(paySlip.payDate, 'dd MMM yyyy')}">31 Jan 2026</span>
+                            </p>
+                        </div>
 
-                <!-- Employee Info -->
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;font-size:0.875rem;">
-                    <div>
-                        <p style="font-size:0.72rem;color:#6b788b;margin:0 0 2px;">Employee Name</p>
-                        <p style="font-weight:500;margin:0;" th:text="${paySlip.employeeName}">—</p>
-                    </div>
-                    <div>
-                        <p style="font-size:0.72rem;color:#6b788b;margin:0 0 2px;">Employee ID</p>
-                        <p style="margin:0;" th:text="${paySlip.employeeId}">—</p>
-                    </div>
-                    <div>
-                        <p style="font-size:0.72rem;color:#6b788b;margin:0 0 2px;">Pay Date</p>
-                        <p style="margin:0;" th:text="${#temporals.format(paySlip.payDate, 'dd MMMM yyyy')}">—</p>
-                    </div>
-                    <div>
-                        <p style="font-size:0.72rem;color:#6b788b;margin:0 0 2px;">Pension Scheme</p>
-                        <p style="margin:0;" th:text="${paySlip.appliedPensionSchemeName}">—</p>
-                    </div>
-                </div>
+                        <!-- Employee Info -->
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;font-size:0.875rem;">
+                            <div>
+                                <p style="font-size:0.72rem;color:#6b788b;margin:0 0 2px;">Employee Name</p>
+                                <p style="font-weight:500;margin:0;" th:text="${paySlip.employeeName}">—</p>
+                            </div>
+                            <div>
+                                <p style="font-size:0.72rem;color:#6b788b;margin:0 0 2px;">Employee ID</p>
+                                <p style="margin:0;" th:text="${paySlip.employeeId}">—</p>
+                            </div>
+                            <div>
+                                <p style="font-size:0.72rem;color:#6b788b;margin:0 0 2px;">Pay Date</p>
+                                <p style="margin:0;" th:text="${#temporals.format(paySlip.payDate, 'dd MMMM yyyy')}">—</p>
+                            </div>
+                            <div>
+                                <p style="font-size:0.72rem;color:#6b788b;margin:0 0 2px;">Pension Scheme</p>
+                                <p style="margin:0;" th:text="${paySlip.appliedPensionSchemeName}">—</p>
+                            </div>
+                        </div>
 
-                <!-- Allowances Section -->
-                <div style="margin-bottom:1rem;">
-                    <h5 style="font-size:0.72rem;font-weight:600;color:#5f6c80;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.5rem;">Allowances</h5>
-                    <div th:each="allowance : ${paySlip.allowances}"
-                         th:unless="${allowance.description == 'Residual Adjustment' or allowance.code == 'RESIDUAL'}"
-                         class="ps-pay-item" style="font-size:0.875rem;">
+                        <!-- Allowances Section -->
+                        <div style="margin-bottom:1rem;">
+                            <h5 style="font-size:0.72rem;font-weight:600;color:#5f6c80;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.5rem;">Allowances</h5>
+                            <div th:each="allowance : ${paySlip.allowances}"
+                                 th:unless="${allowance.description == 'Residual Adjustment' or allowance.code == 'RESIDUAL'}"
+                                 class="ps-pay-item" style="font-size:0.875rem;">
             <span style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;">
               <span th:text="${allowance.description}">Allowance</span>
               <span th:if="${allowance.taxable}" class="ps-tax-badge">
@@ -866,78 +938,78 @@
                 <i class="bi bi-x-circle-fill" style="font-size:0.8rem;"></i> Out of Payroll
               </span>
             </span>
-                        <span style="font-weight:500;">
+                                <span style="font-weight:500;">
               ₦<span th:text="${#numbers.formatDecimal(allowance.amount, 0, 'COMMA', 2, 'POINT')}">0.00</span>
             </span>
-                    </div>
-                    <div th:if="${paySlip.allowances == null or #lists.isEmpty(paySlip.allowances)}"
-                         style="font-size:0.875rem;color:#95a3b3;font-style:italic;">No allowances.</div>
-                </div>
+                            </div>
+                            <div th:if="${paySlip.allowances == null or #lists.isEmpty(paySlip.allowances)}"
+                                 style="font-size:0.875rem;color:#95a3b3;font-style:italic;">No allowances.</div>
+                        </div>
 
-                <!-- Deductions Section -->
-                <div style="margin-bottom:1rem;">
-                    <h5 style="font-size:0.72rem;font-weight:600;color:#5f6c80;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.5rem;">Deductions</h5>
-                    <div th:each="deduction : ${paySlip.deductions}" class="ps-pay-item" style="font-size:0.875rem;">
+                        <!-- Deductions Section -->
+                        <div style="margin-bottom:1rem;">
+                            <h5 style="font-size:0.72rem;font-weight:600;color:#5f6c80;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.5rem;">Deductions</h5>
+                            <div th:each="deduction : ${paySlip.deductions}" class="ps-pay-item" style="font-size:0.875rem;">
             <span style="display:flex;align-items:center;">
               <span th:text="${deduction.description}">Deduction</span>
               <span th:if="${deduction.code == 'PAYE' or deduction.code == 'PENSION'}" class="ps-statutory-badge">
                 <i class="bi bi-shield-fill" style="font-size:0.6rem;margin-right:2px;"></i> statutory
               </span>
             </span>
-                        <span style="font-weight:500;">
+                                <span style="font-weight:500;">
               -₦<span th:text="${#numbers.formatDecimal(deduction.amount, 0, 'COMMA', 2, 'POINT')}">0.00</span>
             </span>
-                    </div>
-                    <div th:if="${paySlip.deductions == null or #lists.isEmpty(paySlip.deductions)}"
-                         style="font-size:0.875rem;color:#95a3b3;font-style:italic;">No deductions.</div>
-                </div>
+                            </div>
+                            <div th:if="${paySlip.deductions == null or #lists.isEmpty(paySlip.deductions)}"
+                                 style="font-size:0.875rem;color:#95a3b3;font-style:italic;">No deductions.</div>
+                        </div>
 
-                <!-- Totals -->
-                <div style="border-top:1px solid #e6e9ef;padding-top:0.75rem;margin-top:0.5rem;">
-                    <div style="display:flex;justify-content:space-between;font-size:0.875rem;margin-bottom:4px;">
-                        <span style="font-weight:600;">Gross Pay</span>
-                        <span>₦<span th:text="${#numbers.formatDecimal(paySlip.grossPay, 0, 'COMMA', 2, 'POINT')}">0.00</span></span>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;font-size:0.875rem;margin-bottom:4px;">
-                        <span style="font-weight:600;">Total Deductions</span>
-                        <span>-₦<span th:text="${#numbers.formatDecimal(paySlip.totalDeductions, 0, 'COMMA', 2, 'POINT')}">0.00</span></span>
-                    </div>
-                    <!-- Special Payments (non-gross earnings) -->
-                    <div th:if="${paySlip.nonGrossEarnings != null and paySlip.nonGrossEarnings.compareTo(0) != 0}"
-                         style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;padding:0.5rem 0.75rem;border-radius:6px;background:#f0fdf4;border:1px solid #bbf7d0;">
+                        <!-- Totals -->
+                        <div style="border-top:1px solid #e6e9ef;padding-top:0.75rem;margin-top:0.5rem;">
+                            <div style="display:flex;justify-content:space-between;font-size:0.875rem;margin-bottom:4px;">
+                                <span style="font-weight:600;">Gross Pay</span>
+                                <span>₦<span th:text="${#numbers.formatDecimal(paySlip.grossPay, 0, 'COMMA', 2, 'POINT')}">0.00</span></span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;font-size:0.875rem;margin-bottom:4px;">
+                                <span style="font-weight:600;">Total Deductions</span>
+                                <span>-₦<span th:text="${#numbers.formatDecimal(paySlip.totalDeductions, 0, 'COMMA', 2, 'POINT')}">0.00</span></span>
+                            </div>
+                            <!-- Special Payments (non-gross earnings) -->
+                            <div th:if="${paySlip.nonGrossEarnings != null and paySlip.nonGrossEarnings.compareTo(0) != 0}"
+                                 style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;padding:0.5rem 0.75rem;border-radius:6px;background:#f0fdf4;border:1px solid #bbf7d0;">
                         <span style="display:flex;align-items:center;gap:6px;font-size:0.875rem;font-weight:600;color:#166534;">
                             <i class="bi bi-gift" style="font-size:0.85rem;"></i> Special Payments
                         </span>
-                        <span style="font-size:0.875rem;font-weight:700;color:#166534;">
+                                <span style="font-size:0.875rem;font-weight:700;color:#166534;">
                             +₦<span th:text="${#numbers.formatDecimal(paySlip.nonGrossEarnings, 0, 'COMMA', 2, 'POINT')}">0.00</span>
                         </span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;font-size:1rem;font-weight:700;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid #e6e9ef;">
+                                <span>Net Pay</span>
+                                <span style="color:#1d4ed8;">₦<span th:text="${#numbers.formatDecimal(paySlip.netPay, 0, 'COMMA', 2, 'POINT')}">0.00</span></span>
+                            </div>
+                        </div>
+
+                        <!-- Payment Details -->
+                        <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #f3f4f6;font-size:0.78rem;color:#6b788b;">
+                            <span style="font-weight:600;">Bank:</span>
+                            <span th:if="${paySlip.bankName != null}" th:text="${paySlip.bankName + (paySlip.bankAccountNumber != null ? ' · ' + paySlip.bankAccountNumber : '')}">—</span>
+                            <span th:unless="${paySlip.bankName != null}">No bank details on file</span>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:1.5rem;" class="ps-modal-actions">
+                            <button class="ps-close-modal" style="padding:8px 16px;border:1px solid #d6dce5;border-radius:6px;font-size:0.875rem;font-weight:500;cursor:pointer;background:#fff;">
+                                <i class="bi bi-x-lg" style="margin-right:4px;"></i> Close
+                            </button>
+                            <button class="download-payslip-modal-btn" style="padding:8px 16px;background:#1d4ed8;color:white;border:none;border-radius:6px;font-size:0.875rem;font-weight:500;cursor:pointer;"
+                                    th:attr="data-modal-id=${'psModal_slip_' + paySlip.id}">
+                                <i class="bi bi-download" style="margin-right:4px;"></i> Download PDF
+                            </button>
+                        </div>
+
                     </div>
-                    <div style="display:flex;justify-content:space-between;font-size:1rem;font-weight:700;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid #e6e9ef;">
-                        <span>Net Pay</span>
-                        <span style="color:#1d4ed8;">₦<span th:text="${#numbers.formatDecimal(paySlip.netPay, 0, 'COMMA', 2, 'POINT')}">0.00</span></span>
-                    </div>
                 </div>
-
-                <!-- Payment Details -->
-                <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #f3f4f6;font-size:0.78rem;color:#6b788b;">
-                    <span style="font-weight:600;">Bank:</span>
-                    <span th:if="${paySlip.bankName != null}" th:text="${paySlip.bankName + (paySlip.bankAccountNumber != null ? ' · ' + paySlip.bankAccountNumber : '')}">—</span>
-                    <span th:unless="${paySlip.bankName != null}">No bank details on file</span>
-                </div>
-
-                <!-- Action Buttons -->
-                <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:1.5rem;" class="ps-modal-actions">
-                    <button class="ps-close-modal" style="padding:8px 16px;border:1px solid #d6dce5;border-radius:6px;font-size:0.875rem;font-weight:500;cursor:pointer;background:#fff;">
-                        <i class="bi bi-x-lg" style="margin-right:4px;"></i> Close
-                    </button>
-                    <button class="download-payslip-modal-btn" style="padding:8px 16px;background:#1d4ed8;color:white;border:none;border-radius:6px;font-size:0.875rem;font-weight:500;cursor:pointer;"
-                            th:attr="data-modal-id=${'psModal_slip_' + paySlip.id}">
-                        <i class="bi bi-download" style="margin-right:4px;"></i> Download PDF
-                    </button>
-                </div>
-
-            </div>
-        </div>
             </th:block>
         </th:block>
     </th:block>
@@ -966,6 +1038,25 @@
                     <button type="submit" class="modal-btn confirm">Yes, Lock Period</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Email payslips confirmation modal -->
+    <div id="emailConfirmModal" class="modal">
+        <div class="modal-overlay" onclick="closeEmailConfirmModal()"></div>
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>Confirm Email Payslips</h3>
+                <button class="modal-close" onclick="closeEmailConfirmModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="emailConfirmMessage">Send payslip emails to the selected employees?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn cancel" onclick="closeEmailConfirmModal()">Cancel</button>
+                <button type="button" class="modal-btn confirm email-confirm" id="emailConfirmSendBtn"
+                        onclick="confirmSendSelectedCurrentPayslips()">Yes, Send Emails</button>
+            </div>
         </div>
     </div>
 
@@ -1046,31 +1137,36 @@
 
           try {
             const { jsPDF } = window.jspdf;
+            // Full resolution for crisp text; JPEG compression (not resolution) is what shrinks the file
+            const RENDER_SCALE = 2;
             const canvas = await html2canvas(container, {
-              scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false
+              scale: RENDER_SCALE, useCORS: true, backgroundColor: '#ffffff', logging: false
             });
 
-            const imgData   = canvas.toDataURL('image/png');
             const imgWidth  = canvas.width;
             const imgHeight = canvas.height;
             const pageWidth = 210;
             const pageHeight= 297;
-            const ratio     = pageWidth / (imgWidth / 2);
+            const ratio     = pageWidth / (imgWidth / RENDER_SCALE);
 
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
             let yPosition = 0;
             const pageHeightPx = pageHeight / ratio;
 
-            while (yPosition < imgHeight / 2) {
+            while (yPosition < imgHeight / RENDER_SCALE) {
               if (yPosition > 0) pdf.addPage();
               const sliceCanvas = document.createElement('canvas');
               sliceCanvas.width  = imgWidth;
-              sliceCanvas.height = Math.min(pageHeightPx * 2, imgHeight - yPosition * 2);
+              sliceCanvas.height = Math.min(pageHeightPx * RENDER_SCALE, imgHeight - yPosition * RENDER_SCALE);
               const ctx = sliceCanvas.getContext('2d');
-              ctx.drawImage(canvas, 0, yPosition * 2, imgWidth, sliceCanvas.height, 0, 0, imgWidth, sliceCanvas.height);
-              const sliceData = sliceCanvas.toDataURL('image/png');
-              const sliceHeightMm = (sliceCanvas.height / 2) * ratio;
-              pdf.addImage(sliceData, 'PNG', 0, 0, pageWidth, sliceHeightMm);
+              // Flatten onto white first: JPEG has no alpha channel
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+              ctx.drawImage(canvas, 0, yPosition * RENDER_SCALE, imgWidth, sliceCanvas.height, 0, 0, imgWidth, sliceCanvas.height);
+              // 0.95 quality: negligible visible compression artifacts, still far smaller than lossless PNG
+              const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.95);
+              const sliceHeightMm = (sliceCanvas.height / RENDER_SCALE) * ratio;
+              pdf.addImage(sliceData, 'JPEG', 0, 0, pageWidth, sliceHeightMm, undefined, 'MEDIUM');
               yPosition += pageHeightPx;
             }
             pdf.save(fileName);
@@ -1084,6 +1180,167 @@
             closeBtns.forEach(el => el.style.visibility = '');
             if (!wasActive) { modal.classList.remove('active'); }
           }
+        }
+
+        function currentPayslipCheckboxes() {
+          return Array.from(document.querySelectorAll('.current-payslip-select'));
+        }
+
+        function toggleEmailSelectMode() {
+          const table = document.getElementById('currentPayrollTable');
+          const selectAllWrapper = document.getElementById('selectAllWrapper');
+          const emailBtn = document.getElementById('emailCurrentPayslipsBtn');
+          const cancelBtn = document.getElementById('cancelEmailSelectBtn');
+          const toggleBtn = document.getElementById('toggleEmailSelectBtn');
+          if (!table) return;
+
+          const active = table.classList.toggle('select-mode');
+          if (selectAllWrapper) selectAllWrapper.style.display = active ? 'inline-flex' : 'none';
+          if (emailBtn) emailBtn.style.display = active ? 'inline-flex' : 'none';
+          if (cancelBtn) cancelBtn.style.display = active ? 'inline-flex' : 'none';
+          if (toggleBtn) toggleBtn.style.display = active ? 'none' : 'inline-flex';
+
+          if (!active) {
+            currentPayslipCheckboxes().forEach(cb => { cb.checked = false; });
+            const master = document.getElementById('selectAllCurrentPayslips');
+            if (master) { master.checked = false; master.indeterminate = false; }
+            const results = document.getElementById('currentPayslipEmailResults');
+            if (results) { results.classList.remove('show'); results.innerHTML = ''; }
+            updateCurrentPayslipEmailButton();
+          }
+        }
+
+        function toggleCurrentPayslipSelection(master) {
+          currentPayslipCheckboxes().forEach(cb => {
+            if (!cb.disabled) cb.checked = master.checked;
+          });
+          updateCurrentPayslipEmailButton();
+        }
+
+        function updateCurrentPayslipEmailButton() {
+          const boxes = currentPayslipCheckboxes();
+          const selected = boxes.filter(cb => cb.checked);
+          const btn = document.getElementById('emailCurrentPayslipsBtn');
+          const master = document.getElementById('selectAllCurrentPayslips');
+          const allSelected = boxes.length > 0 && selected.length === boxes.length;
+          if (btn) {
+            btn.disabled = selected.length === 0;
+            btn.innerHTML = selected.length === 0
+              ? '<i class="bi bi-envelope-paper"></i> Email selected'
+              : (allSelected
+                  ? '<i class="bi bi-envelope-paper"></i> Email all selected (' + selected.length + ')'
+                  : '<i class="bi bi-envelope-paper"></i> Email selected (' + selected.length + ')');
+          }
+          if (master) {
+            master.checked = allSelected;
+            master.indeterminate = selected.length > 0 && !allSelected;
+          }
+        }
+
+        function selectedCurrentPayslipEmployeeIds() {
+          return currentPayslipCheckboxes()
+            .filter(cb => cb.checked)
+            .map(cb => Number(cb.value))
+            .filter(id => Number.isFinite(id));
+        }
+
+        function openEmailConfirmModal() {
+          const employeeIds = selectedCurrentPayslipEmployeeIds();
+          if (!employeeIds.length) {
+            alert('Select at least one employee.');
+            return;
+          }
+          const boxes = currentPayslipCheckboxes();
+          const allSelected = boxes.length > 0 && employeeIds.length === boxes.length;
+          const msg = document.getElementById('emailConfirmMessage');
+          if (msg) {
+            msg.textContent = allSelected
+              ? 'Send payslip emails to all ' + employeeIds.length + ' selected employee(s)?'
+              : 'Send payslip emails to ' + employeeIds.length + ' selected employee(s)?';
+          }
+          const modal = document.getElementById('emailConfirmModal');
+          if (modal) modal.classList.add('show');
+        }
+
+        function closeEmailConfirmModal() {
+          const modal = document.getElementById('emailConfirmModal');
+          if (modal) modal.classList.remove('show');
+        }
+
+        function confirmSendSelectedCurrentPayslips() {
+          closeEmailConfirmModal();
+          sendSelectedCurrentPayslips();
+        }
+
+        async function sendSelectedCurrentPayslips() {
+          const employeeIds = selectedCurrentPayslipEmployeeIds();
+          if (!employeeIds.length) {
+            alert('Select at least one employee.');
+            return;
+          }
+
+          const selectedBtn = document.getElementById('emailCurrentPayslipsBtn');
+          const results = document.getElementById('currentPayslipEmailResults');
+          const originalSelectedText = selectedBtn ? selectedBtn.innerHTML : '';
+
+          if (selectedBtn) {
+            selectedBtn.disabled = true;
+            selectedBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending...';
+          }
+          if (results) {
+            results.classList.add('show');
+            results.innerHTML = '<div class="payroll-email-summary">Sending ' + employeeIds.length + ' payslip email(s)...</div>';
+          }
+
+          try {
+            const response = await fetch('/api/payroll/current-payslips/email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ employeeIds })
+            });
+            const data = await response.json().catch(() => null);
+            if (!response.ok) {
+              throw new Error(data?.results?.[0]?.message || 'Payslip email request failed.');
+            }
+            renderCurrentPayslipEmailResults(data);
+          } catch (err) {
+            if (results) {
+              results.classList.add('show');
+              results.innerHTML = '<div class="payroll-email-summary" style="color:#991b1b;">' + escapeHtml(err.message || 'Payslip email request failed.') + '</div>';
+            }
+          } finally {
+            if (selectedBtn) selectedBtn.innerHTML = originalSelectedText;
+            updateCurrentPayslipEmailButton();
+          }
+        }
+
+        function renderCurrentPayslipEmailResults(data) {
+          const results = document.getElementById('currentPayslipEmailResults');
+          if (!results) return;
+          const rows = Array.isArray(data.results) ? data.results : [];
+          const summary = 'Sent ' + (data.sent || 0) + ', skipped ' + (data.skipped || 0) + ', failed ' + (data.failed || 0) + ' of ' + (data.requested || rows.length) + '.';
+          const list = rows.map(row => {
+            const status = (row.status || '').toLowerCase();
+            const name = row.employeeName || ('Employee #' + (row.employeeId || ''));
+            const email = row.email ? ' - ' + row.email : '';
+            return '<div class="payroll-email-result-row">'
+              + '<div class="payroll-email-result-status ' + escapeHtml(status) + '">' + escapeHtml(row.status || '') + '</div>'
+              + '<div><strong>' + escapeHtml(name) + '</strong>' + escapeHtml(email)
+              + '<div>' + escapeHtml(row.message || '') + '</div></div>'
+              + '</div>';
+          }).join('');
+          results.classList.add('show');
+          results.innerHTML = '<div class="payroll-email-summary">' + escapeHtml(summary) + '</div>'
+            + '<div class="payroll-email-result-list">' + list + '</div>';
+        }
+
+        function escapeHtml(value) {
+          return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
         }
 
         /* Simple status filter for current period */
@@ -1112,7 +1369,7 @@
         /* Lock modal */
         function openLockModal() { document.getElementById('lockModal').classList.add('show'); }
         function closeModal()    { document.getElementById('lockModal').classList.remove('show'); }
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeEmailConfirmModal(); } });
 
         function togglePastPayroll() {
             const content  = document.getElementById('pastPayrollContent');
