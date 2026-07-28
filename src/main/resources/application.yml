@@ -115,4 +115,4 @@ fam:
 #resend
 resend:
   api-key: ${RESEND_API_KEY:}
-  default-from: ${RESEND_FROM:noreply@justjava.tech}
+  default-from: ${RESEND_FROM:}

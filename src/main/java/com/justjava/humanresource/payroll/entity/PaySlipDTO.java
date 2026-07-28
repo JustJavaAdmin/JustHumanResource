@@ -47,4 +47,12 @@ public class PaySlipDTO {
     PayrollRunStatus status;
     String bankName;
     String bankAccountNumber;
+
+    /* ======================
+       PDF HEADER (job grade + company logo)
+       ====================== */
+
+    String jobGradeName;
+    byte[] companyLogoData;
+    String companyLogoContentType;
 }

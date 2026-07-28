@@ -7,6 +7,7 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -28,6 +29,10 @@ public class PaySlipPdfService {
         try (PDDocument document = new PDDocument();
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             Renderer renderer = new Renderer(document);
+            renderer.logo(paySlip.getCompanyLogoData());
+            if (paySlip.getJobGradeName() != null && !paySlip.getJobGradeName().isBlank()) {
+                renderer.jobGrade(paySlip.getJobGradeName());
+            }
             renderer.title("Payslip - " + month(paySlip.getPayDate()));
             renderer.text("Employee Name: " + value(paySlip.getEmployeeName()));
             renderer.text("Employee ID: " + value(paySlip.getEmployeeId()));
@@ -146,6 +151,41 @@ public class PaySlipPdfService {
         Renderer(PDDocument document) throws IOException {
             this.document = document;
             addPage();
+        }
+
+        void logo(byte[] data) throws IOException {
+            if (data == null || data.length == 0) {
+                return;
+            }
+            PDImageXObject image;
+            try {
+                image = PDImageXObject.createFromByteArray(document, data, "logo");
+            } catch (IOException e) {
+                // Corrupt/unreadable logo data shouldn't block the whole payslip.
+                return;
+            }
+
+            float maxWidth = 140;
+            float maxHeight = 60;
+            float scale = Math.min(maxWidth / image.getWidth(), maxHeight / image.getHeight());
+            scale = Math.min(scale, 1f);
+            float drawWidth = image.getWidth() * scale;
+            float drawHeight = image.getHeight() * scale;
+
+            ensureSpace(drawHeight);
+            float x = (PDRectangle.A4.getWidth() - drawWidth) / 2;
+            content.drawImage(image, x, y - drawHeight, drawWidth, drawHeight);
+            y -= drawHeight + 14;
+        }
+
+        void jobGrade(String text) throws IOException {
+            ensureSpace(24);
+            content.beginText();
+            content.setFont(PDType1Font.HELVETICA_BOLD, 18);
+            content.newLineAtOffset(MARGIN, y);
+            content.showText(pdfText(text));
+            content.endText();
+            y -= 24;
         }
 
         void title(String text) throws IOException {
