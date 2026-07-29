@@ -39,7 +39,7 @@ jobs:
       - name: Build and Push with Jib
         run: |
           mvn -B clean package jib:build -DskipTests \
-            -Djib.to.image=kazeemakinrinde/justhumanresource:latest \
+            -Djib.to.image=kazeemakinrinde/justhumanresource:$(Build.BuildId) \
             -Djib.to.auth.username=${{ secrets.DOCKER_USERNAME }} \
             -Djib.to.auth.password=${{ secrets.DOCKER_PASSWORD }}
 
@@ -53,4 +53,4 @@ jobs:
         with:
           app-name: 'JustHR2' # Replace with your exact Azure Web App name
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          images: 'kazeemakinrinde/justhumanresource:latest'
+          images: 'kazeemakinrinde/justhumanresource:$(Build.BuildId)'
