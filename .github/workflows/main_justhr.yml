@@ -212,6 +212,6 @@ jobs:
       - name: Deploy Container to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'justHR2' # Replace with your exact Azure Web App name
+          app-name: 'JustHR2' # Replace with your exact Azure Web App name
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           images: 'kazeemakinrinde/justhumanresource:latest'
