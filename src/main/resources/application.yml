@@ -110,3 +110,9 @@ fam:
     bearer-token: ${FAM_API_BEARER_TOKEN:}
     timeout: ${FAM_API_TIMEOUT:5s}
     mode: ${FAM_MODE:SELF}
+
+
+#resend
+resend:
+  api-key: ${RESEND_API_KEY:}
+  default-from: ${RESEND_FROM:}

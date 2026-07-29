@@ -4,15 +4,17 @@ import com.justjava.humanresource.core.config.AuthenticationManager;
 import com.justjava.humanresource.hr.dto.CreatePayGroupCommand;
 import com.justjava.humanresource.hr.entity.Employee;
 import com.justjava.humanresource.hr.entity.PayGroup;
-import com.justjava.humanresource.hr.service.EmployeeService;
 import com.justjava.humanresource.hr.service.JobHrEmployeeAccessService;
 import com.justjava.humanresource.hr.service.SetupService;
 import com.justjava.humanresource.onboarding.service.EmployeeOnboardingService;
+import com.justjava.humanresource.payroll.dto.PayslipEmailRequest;
+import com.justjava.humanresource.payroll.dto.PayslipEmailResponse;
 import com.justjava.humanresource.payroll.entity.*;
 import com.justjava.humanresource.payroll.service.PayGroupService;
 import com.justjava.humanresource.payroll.service.PaySlipService;
 import com.justjava.humanresource.payroll.service.PayrollPeriodService;
 import com.justjava.humanresource.payroll.service.PayrollSetupService;
+import com.justjava.humanresource.utils.PaySlipEmailService;
 import com.justjava.humanresource.payroll.dto.EmployeeGroupedReportDTO;
 import com.justjava.humanresource.payroll.dto.EmployeeReportItemDTO;
 import com.justjava.humanresource.payroll.dto.AllowanceGroupReportDTO;
@@ -76,7 +78,7 @@ public class PayrollController {
     private ReportingService reportingService;
 
     @Autowired
-    private EmployeeService employeeService;
+    private PaySlipEmailService paySlipEmailService;
 
     @Autowired
     FlowableTaskService flowableTaskService;
@@ -452,6 +454,15 @@ public class PayrollController {
         model.addAttribute("isJobHr", jobHrEmployeeAccessService.isJobHrScopedUser());
 
         return "payroll/fragments/employee-payroll";
+    }
+
+    @PostMapping("/api/payroll/current-payslips/email")
+    @ResponseBody
+    public ResponseEntity<PayslipEmailResponse> emailCurrentPayslips(@RequestBody PayslipEmailRequest request) {
+        PayslipEmailResponse response = paySlipEmailService.emailCurrentPayslips(1L, request);
+        return response.failed() > 0 && response.requested() == 0
+                ? ResponseEntity.badRequest().body(response)
+                : ResponseEntity.ok(response);
     }
 
 

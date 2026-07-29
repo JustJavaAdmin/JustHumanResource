@@ -4,6 +4,7 @@ package com.justjava.humanresource.payroll.service.impl;
 import com.justjava.humanresource.core.enums.PayrollRunStatus;
 import com.justjava.humanresource.hr.entity.Employee;
 import com.justjava.humanresource.hr.entity.EmployeeBankDetail;
+import com.justjava.humanresource.orgStructure.entity.Company;
 import com.justjava.humanresource.payroll.entity.*;
 import com.justjava.humanresource.payroll.enums.PayComponentType;
 import com.justjava.humanresource.payroll.enums.PayrollPeriodStatus;
@@ -23,6 +24,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class PaySlipServiceImpl implements PaySlipService {
 
     private final PayrollRunRepository payrollRunRepository;
@@ -434,6 +436,16 @@ public class PaySlipServiceImpl implements PaySlipService {
             employeeBankDetail=employeeBankDetails.get(0);
         }
 
+        Employee employee = paySlip.getEmployee();
+
+        String jobGradeName = employee.getJobStep() != null && employee.getJobStep().getJobGrade() != null
+                ? employee.getJobStep().getJobGrade().getName()
+                : null;
+
+        Company company = employee.getDepartment() != null
+                ? employee.getDepartment().getCompany()
+                : null;
+
         return PaySlipDTO.builder()
                 .id(paySlip.getId())
                 .employeeId(paySlip.getEmployee().getId())
@@ -454,6 +466,10 @@ public class PaySlipServiceImpl implements PaySlipService {
 
                 .appliedTaxBandSummary(run.getAppliedTaxBandSummary())
                 .appliedPensionSchemeName(run.getAppliedPensionSchemeName())
+
+                .jobGradeName(jobGradeName)
+                .companyLogoData(company != null ? company.getLogoData() : null)
+                .companyLogoContentType(company != null ? company.getLogoContentType() : null)
 
                 .build();
     }
