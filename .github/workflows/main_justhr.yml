@@ -39,7 +39,7 @@ jobs:
       - name: Build and Push with Jib
         run: |
           mvn -B clean package jib:build -DskipTests \
-            -Djib.to.image=kazeemakinrinde/justhumanresource:${{ github.run_number }}) \
+            -Djib.to.image=kazeemakinrinde/justhumanresource:${{ github.run_number }} \
             -Djib.to.auth.username=${{ secrets.DOCKER_USERNAME }} \
             -Djib.to.auth.password=${{ secrets.DOCKER_PASSWORD }}
 
