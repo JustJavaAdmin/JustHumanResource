@@ -126,7 +126,8 @@
         }
         .filter-select:focus { outline: none; border-color: #5f7daf; }
 
-        .payroll-table { width: 100%; border-collapse: collapse; }
+        .payroll-table-wrap { width: 100%; }
+        .payroll-table { width: 100%; border-collapse: collapse; table-layout: auto; }
         .payroll-table thead tr {
           background: #f5f7fb;
           border-top: 1px solid #e6e9ef;
@@ -135,15 +136,29 @@
         .payroll-table th {
           padding: 0.75rem 1.5rem;
           text-align: left; font-size: 0.68rem; font-weight: 600;
-          letter-spacing: 0.03em; text-transform: uppercase; color: #5f6c80; white-space: nowrap;
+          letter-spacing: 0.03em; text-transform: uppercase; color: #5f6c80;
         }
         .payroll-table tbody tr { border-bottom: 1px solid #edeff2; transition: background 0.1s; }
         .payroll-table tbody tr:hover { background: #f9fafc; }
-        .payroll-table td { padding: 1rem 1.5rem; font-size: 0.875rem; color: #1f2a3e; white-space: nowrap; }
+        .payroll-table td { padding: 1rem 1.5rem; font-size: 0.875rem; color: #1f2a3e; }
 
-        /* Employee name column: allow wrapping so long names don't push Actions off-screen */
-        .payroll-table td:first-child { white-space: normal; min-width: 160px; }
-        .payroll-table td:first-child .font-semibold {
+        /* Every column EXCEPT the employee-name column and the checkbox column:
+           lock to its own content width (never stretched, never squeezed) */
+        .payroll-table th:not(.emp-name-th):not(.payroll-check-cell),
+        .payroll-table td:not(.emp-name-cell):not(.payroll-check-cell) {
+          width: 1%;
+          white-space: nowrap;
+        }
+
+        /* Employee name column: the ONLY column allowed to shrink/wrap.
+           It has no fixed width, so it absorbs whatever space is left over
+           once every other column has taken exactly what it needs. */
+        .payroll-table th.emp-name-th,
+        .payroll-table td.emp-name-cell {
+          white-space: normal;
+          width: auto;
+        }
+        .payroll-table td.emp-name-cell .font-semibold {
           word-break: break-word;
           overflow-wrap: anywhere;
           white-space: normal;
@@ -514,14 +529,14 @@
 
                 <div id="currentPayslipEmailResults" class="payroll-email-results"></div>
 
-                <div class="overflow-x-auto custom-scrollbar">
+                <div class="payroll-table-wrap">
                     <table class="payroll-table" id="currentPayrollTable">
                         <thead>
                         <tr>
                             <th class="payroll-check-cell">
                                 <span class="sr-only">Select</span>
                             </th>
-                            <th>Employee</th>
+                            <th class="emp-name-th">Employee</th>
                             <th>Payroll Date</th>
                             <th>Period</th>
                             <th>Gross Pay</th>
@@ -541,7 +556,7 @@
                                        th:attr="data-employee-name=${run.employee.firstName + ' ' + run.employee.lastName},data-email=${run.employee.email}"
                                        onchange="updateCurrentPayslipEmailButton()">
                             </td>
-                            <td>
+                            <td class="emp-name-cell">
                                 <div class="flex items-center gap-3">
                                     <div class="emp-avatar"
                                          th:with="fullName=${run.employee.firstName + ' ' + run.employee.lastName}"
@@ -648,11 +663,11 @@
 
                 <!-- Collapsible table -->
                 <div th:id="'period_' + ${entry.key}" style="display:none;">
-                    <div class="overflow-x-auto custom-scrollbar">
+                    <div class="payroll-table-wrap">
                         <table class="payroll-table">
                             <thead>
                             <tr>
-                                <th>Employee</th>
+                                <th class="emp-name-th">Employee</th>
                                 <th>Pay Day</th>
                                 <th>Basic Salary</th>
                                 <th>Gross Pay</th>
@@ -664,7 +679,7 @@
                             </thead>
                             <tbody>
                             <tr th:each="paySlip : ${entry.value}">
-                                <td>
+                                <td class="emp-name-cell">
                                     <div class="flex items-center gap-3">
                                         <div class="emp-avatar"
                                              th:text="${paySlip.employeeName != null and #strings.length(paySlip.employeeName) >= 2
