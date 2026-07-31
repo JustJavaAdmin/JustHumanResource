@@ -75,6 +75,9 @@
         }
         .payroll-check-cell { width: 42px; text-align: center; display: none; }
         .payroll-table.select-mode .payroll-check-cell { display: table-cell; }
+        .past-check-cell { width: 42px; text-align: center; display: none; }
+        .period-select-mode .past-check-cell { display: table-cell; }
+        .period-email-actions { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
         .payroll-select-checkbox {
           width: 16px; height: 16px; accent-color: #1e3a8a; cursor: pointer;
         }
@@ -628,14 +631,16 @@
          PAST RECORDS   model: previousPeriods  (List<PaySlipDTO>)
          ============================================================== -->
     <div th:if="${report == null}">
-        <div class="period-label" style="margin-top:2.5rem;">Past Payroll Records</div>
+        <div class="period-label" style="margin-top:2.5rem;">
+            <span>Past Payroll Records</span>
+        </div>
 
         <div th:if="${previousPeriods == null}" class="model-fallback">
             <i class="bi bi-exclamation-triangle-fill"></i>
             <span>Past payroll data is unavailable. Please refresh the page or contact support.</span>
         </div>
 
-        <div th:if="${previousPeriods != null and not #maps.isEmpty(previousPeriods)}">
+        <div th:if="${previousPeriods != null and not #maps.isEmpty(previousPeriods)}" id="pastPayrollContainer">
             <!-- One collapsible card per period -->
             <div th:each="entry : ${previousPeriods}" class="past-period-card" style="margin-bottom: 0.875rem;">
 
@@ -655,18 +660,50 @@
                                  th:text="${#lists.size(entry.value)} + ' employee' + (${#lists.size(entry.value)} != 1 ? 's' : '')">records</div>
                         </div>
                     </div>
-                    <span style="display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:6px;font-size:0.78rem;font-weight:600;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;white-space:nowrap;">
-                    <i th:id="'chevron_' + ${entry.key}" class="bi bi-chevron-down" style="transition:transform 0.2s;"></i>
-                    View
-                </span>
+                    <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                        <div class="period-email-actions">
+                            <button type="button" class="payroll-email-btn period-email-toggle-btn"
+                                    th:id="'toggleEmailBtn_' + ${entry.key}"
+                                    th:attr="data-email-period-key=${entry.key}">
+                                <i class="bi bi-envelope-paper"></i> Email Payslips
+                            </button>
+                            <label class="payroll-email-select-all period-select-all-wrapper"
+                                   th:id="'selectAllWrapper_' + ${entry.key}" style="display:none;">
+                                <input type="checkbox" class="payroll-select-checkbox period-select-all-checkbox"
+                                       th:id="'selectAllCheckbox_' + ${entry.key}"
+                                       th:attr="data-email-period-key=${entry.key}">
+                                Select all
+                            </label>
+                            <button type="button" class="payroll-email-btn primary period-email-selected-btn"
+                                    th:id="'emailSelectedBtn_' + ${entry.key}"
+                                    th:attr="data-email-period-key=${entry.key}"
+                                    style="display:none;" disabled>
+                                <i class="bi bi-envelope-paper"></i> Email selected
+                            </button>
+                            <button type="button" class="payroll-email-btn period-email-cancel-btn"
+                                    th:id="'cancelEmailBtn_' + ${entry.key}"
+                                    th:attr="data-email-period-key=${entry.key}"
+                                    style="display:none;">
+                                Cancel
+                            </button>
+                        </div>
+                        <span style="display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:6px;font-size:0.78rem;font-weight:600;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;white-space:nowrap;">
+                        <i th:id="'chevron_' + ${entry.key}" class="bi bi-chevron-down" style="transition:transform 0.2s;"></i>
+                        View
+                    </span>
+                    </div>
                 </div>
 
                 <!-- Collapsible table -->
                 <div th:id="'period_' + ${entry.key}" style="display:none;">
+                    <div th:id="'emailResults_' + ${entry.key}" class="payroll-email-results period-email-results"></div>
                     <div class="payroll-table-wrap">
                         <table class="payroll-table">
                             <thead>
                             <tr>
+                                <th class="past-check-cell">
+                                    <span class="sr-only">Select</span>
+                                </th>
                                 <th class="emp-name-th">Employee</th>
                                 <th>Pay Day</th>
                                 <th>Basic Salary</th>
@@ -679,6 +716,12 @@
                             </thead>
                             <tbody>
                             <tr th:each="paySlip : ${entry.value}">
+                                <td class="past-check-cell">
+                                    <input type="checkbox" class="payroll-select-checkbox past-payslip-select"
+                                           th:value="${paySlip.id}"
+                                           th:attr="data-employee-name=${paySlip.employeeName}"
+                                           onchange="handlePastPayslipCheckboxChange(this)">
+                                </td>
                                 <td class="emp-name-cell">
                                     <div class="flex items-center gap-3">
                                         <div class="emp-avatar"
@@ -1070,7 +1113,7 @@
             <div class="modal-footer">
                 <button type="button" class="modal-btn cancel" onclick="closeEmailConfirmModal()">Cancel</button>
                 <button type="button" class="modal-btn confirm email-confirm" id="emailConfirmSendBtn"
-                        onclick="confirmSendSelectedCurrentPayslips()">Yes, Send Emails</button>
+                        onclick="confirmSendSelectedPayslips()">Yes, Send Emails</button>
             </div>
         </div>
     </div>
@@ -1274,7 +1317,10 @@
               : 'Send payslip emails to ' + employeeIds.length + ' selected employee(s)?';
           }
           const modal = document.getElementById('emailConfirmModal');
-          if (modal) modal.classList.add('show');
+          if (modal) {
+            modal.classList.add('show');
+            modal.dataset.emailScope = 'current';
+          }
         }
 
         function closeEmailConfirmModal() {
@@ -1282,9 +1328,16 @@
           if (modal) modal.classList.remove('show');
         }
 
-        function confirmSendSelectedCurrentPayslips() {
+        function confirmSendSelectedPayslips() {
+          const modal = document.getElementById('emailConfirmModal');
+          const scope = modal ? modal.dataset.emailScope : 'current';
+          const periodKey = modal ? modal.dataset.periodKey : null;
           closeEmailConfirmModal();
-          sendSelectedCurrentPayslips();
+          if (scope === 'past') {
+            sendSelectedPeriodPayslips(periodKey);
+          } else {
+            sendSelectedCurrentPayslips();
+          }
         }
 
         async function sendSelectedCurrentPayslips() {
@@ -1348,6 +1401,204 @@
           results.innerHTML = '<div class="payroll-email-summary">' + escapeHtml(summary) + '</div>'
             + '<div class="payroll-email-result-list">' + list + '</div>';
         }
+
+        /* ── Past payroll records: email selected payslips (scoped per period) ── */
+
+        function periodCheckboxes(periodKey) {
+          const container = document.getElementById('period_' + periodKey);
+          return container ? Array.from(container.querySelectorAll('.past-payslip-select')) : [];
+        }
+
+        // Individual row checkboxes call this; it derives the period key from the
+        // enclosing 'period_{key}' container so the row markup doesn't need the key inline.
+        function handlePastPayslipCheckboxChange(checkbox) {
+          const container = checkbox.closest('[id^="period_"]');
+          if (!container) return;
+          const periodKey = container.id.slice('period_'.length);
+          updatePeriodEmailButton(periodKey);
+        }
+
+        function togglePeriodEmailSelectMode(periodKey) {
+          const container = document.getElementById('period_' + periodKey);
+          if (!container) return;
+
+          const enteringSelectMode = !container.classList.contains('period-select-mode');
+          // Make sure the period's table is expanded so the checkboxes are visible
+          if (enteringSelectMode && container.style.display === 'none') {
+            togglePeriod(periodKey);
+          }
+
+          const selectAllWrapper = document.getElementById('selectAllWrapper_' + periodKey);
+          const emailBtn = document.getElementById('emailSelectedBtn_' + periodKey);
+          const cancelBtn = document.getElementById('cancelEmailBtn_' + periodKey);
+          const toggleBtn = document.getElementById('toggleEmailBtn_' + periodKey);
+
+          const active = container.classList.toggle('period-select-mode');
+          if (selectAllWrapper) selectAllWrapper.style.display = active ? 'inline-flex' : 'none';
+          if (emailBtn) emailBtn.style.display = active ? 'inline-flex' : 'none';
+          if (cancelBtn) cancelBtn.style.display = active ? 'inline-flex' : 'none';
+          if (toggleBtn) toggleBtn.style.display = active ? 'none' : 'inline-flex';
+
+          if (!active) {
+            periodCheckboxes(periodKey).forEach(cb => { cb.checked = false; });
+            const master = document.getElementById('selectAllCheckbox_' + periodKey);
+            if (master) { master.checked = false; master.indeterminate = false; }
+            const results = document.getElementById('emailResults_' + periodKey);
+            if (results) { results.classList.remove('show'); results.innerHTML = ''; }
+            updatePeriodEmailButton(periodKey);
+          }
+        }
+
+        function togglePeriodPayslipSelection(periodKey, master) {
+          periodCheckboxes(periodKey).forEach(cb => {
+            if (!cb.disabled) cb.checked = master.checked;
+          });
+          updatePeriodEmailButton(periodKey);
+        }
+
+        function updatePeriodEmailButton(periodKey) {
+          const boxes = periodCheckboxes(periodKey);
+          const selected = boxes.filter(cb => cb.checked);
+          const btn = document.getElementById('emailSelectedBtn_' + periodKey);
+          const master = document.getElementById('selectAllCheckbox_' + periodKey);
+          const allSelected = boxes.length > 0 && selected.length === boxes.length;
+          if (btn) {
+            btn.disabled = selected.length === 0;
+            btn.innerHTML = selected.length === 0
+              ? '<i class="bi bi-envelope-paper"></i> Email selected'
+              : (allSelected
+                  ? '<i class="bi bi-envelope-paper"></i> Email all selected (' + selected.length + ')'
+                  : '<i class="bi bi-envelope-paper"></i> Email selected (' + selected.length + ')');
+          }
+          if (master) {
+            master.checked = allSelected;
+            master.indeterminate = selected.length > 0 && !allSelected;
+          }
+        }
+
+        function selectedPeriodPayslipIds(periodKey) {
+          return periodCheckboxes(periodKey)
+            .filter(cb => cb.checked)
+            .map(cb => Number(cb.value))
+            .filter(id => Number.isFinite(id));
+        }
+
+        function openPeriodEmailConfirmModal(periodKey) {
+          const paySlipIds = selectedPeriodPayslipIds(periodKey);
+          if (!paySlipIds.length) {
+            alert('Select at least one payslip.');
+            return;
+          }
+          const boxes = periodCheckboxes(periodKey);
+          const allSelected = boxes.length > 0 && paySlipIds.length === boxes.length;
+          const msg = document.getElementById('emailConfirmMessage');
+          if (msg) {
+            msg.textContent = allSelected
+              ? 'Send payslip emails for all ' + paySlipIds.length + ' selected payslip(s)?'
+              : 'Send payslip emails for ' + paySlipIds.length + ' selected payslip(s)?';
+          }
+          const modal = document.getElementById('emailConfirmModal');
+          if (modal) {
+            modal.classList.add('show');
+            modal.dataset.emailScope = 'past';
+            modal.dataset.periodKey = periodKey;
+          }
+        }
+
+        async function sendSelectedPeriodPayslips(periodKey) {
+          const paySlipIds = selectedPeriodPayslipIds(periodKey);
+          if (!paySlipIds.length) {
+            alert('Select at least one payslip.');
+            return;
+          }
+
+          const selectedBtn = document.getElementById('emailSelectedBtn_' + periodKey);
+          const results = document.getElementById('emailResults_' + periodKey);
+          const originalSelectedText = selectedBtn ? selectedBtn.innerHTML : '';
+
+          if (selectedBtn) {
+            selectedBtn.disabled = true;
+            selectedBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending...';
+          }
+          if (results) {
+            results.classList.add('show');
+            results.innerHTML = '<div class="payroll-email-summary">Sending ' + paySlipIds.length + ' payslip email(s)...</div>';
+          }
+
+          try {
+            const response = await fetch('/api/payroll/past-payslips/email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ paySlipIds })
+            });
+            const data = await response.json().catch(() => null);
+            if (!response.ok) {
+              throw new Error(data?.results?.[0]?.message || 'Payslip email request failed.');
+            }
+            renderPeriodEmailResults(periodKey, data);
+          } catch (err) {
+            if (results) {
+              results.classList.add('show');
+              results.innerHTML = '<div class="payroll-email-summary" style="color:#991b1b;">' + escapeHtml(err.message || 'Payslip email request failed.') + '</div>';
+            }
+          } finally {
+            if (selectedBtn) selectedBtn.innerHTML = originalSelectedText;
+            updatePeriodEmailButton(periodKey);
+          }
+        }
+
+        function renderPeriodEmailResults(periodKey, data) {
+          const results = document.getElementById('emailResults_' + periodKey);
+          if (!results) return;
+          const rows = Array.isArray(data.results) ? data.results : [];
+          const summary = 'Sent ' + (data.sent || 0) + ', skipped ' + (data.skipped || 0) + ', failed ' + (data.failed || 0) + ' of ' + (data.requested || rows.length) + '.';
+          const list = rows.map(row => {
+            const status = (row.status || '').toLowerCase();
+            const name = row.employeeName || ('Employee #' + (row.employeeId || ''));
+            const email = row.email ? ' - ' + row.email : '';
+            return '<div class="payroll-email-result-row">'
+              + '<div class="payroll-email-result-status ' + escapeHtml(status) + '">' + escapeHtml(row.status || '') + '</div>'
+              + '<div><strong>' + escapeHtml(name) + '</strong>' + escapeHtml(email)
+              + '<div>' + escapeHtml(row.message || '') + '</div></div>'
+              + '</div>';
+          }).join('');
+          results.classList.add('show');
+          results.innerHTML = '<div class="payroll-email-summary">' + escapeHtml(summary) + '</div>'
+            + '<div class="payroll-email-result-list">' + list + '</div>';
+        }
+
+        // Wire up per-period email controls. These use their own 'data-email-period-key' attribute
+        // (rather than 'data-period-key') so they aren't also picked up by the generic period
+        // expand/collapse wiring below, which targets every '[data-period-key]' element.
+        // stopPropagation keeps clicks on these controls from also triggering the period header's expand/collapse.
+        document.querySelectorAll('.period-email-toggle-btn').forEach(function(btn) {
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            togglePeriodEmailSelectMode(this.getAttribute('data-email-period-key'));
+          });
+        });
+        document.querySelectorAll('.period-email-cancel-btn').forEach(function(btn) {
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            togglePeriodEmailSelectMode(this.getAttribute('data-email-period-key'));
+          });
+        });
+        document.querySelectorAll('.period-email-selected-btn').forEach(function(btn) {
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            openPeriodEmailConfirmModal(this.getAttribute('data-email-period-key'));
+          });
+        });
+        document.querySelectorAll('.period-select-all-checkbox').forEach(function(cb) {
+          cb.addEventListener('click', function(e) { e.stopPropagation(); });
+          cb.addEventListener('change', function() {
+            togglePeriodPayslipSelection(this.getAttribute('data-email-period-key'), this);
+          });
+        });
+        document.querySelectorAll('.period-email-actions').forEach(function(el) {
+          el.addEventListener('click', function(e) { e.stopPropagation(); });
+        });
+
 
         function escapeHtml(value) {
           return String(value ?? '')
