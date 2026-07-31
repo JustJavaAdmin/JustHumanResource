@@ -7,6 +7,7 @@ import com.justjava.humanresource.hr.entity.PayGroup;
 import com.justjava.humanresource.hr.service.JobHrEmployeeAccessService;
 import com.justjava.humanresource.hr.service.SetupService;
 import com.justjava.humanresource.onboarding.service.EmployeeOnboardingService;
+import com.justjava.humanresource.payroll.dto.PastPayslipEmailRequest;
 import com.justjava.humanresource.payroll.dto.PayslipEmailRequest;
 import com.justjava.humanresource.payroll.dto.PayslipEmailResponse;
 import com.justjava.humanresource.payroll.entity.*;
@@ -460,6 +461,15 @@ public class PayrollController {
     @ResponseBody
     public ResponseEntity<PayslipEmailResponse> emailCurrentPayslips(@RequestBody PayslipEmailRequest request) {
         PayslipEmailResponse response = paySlipEmailService.emailCurrentPayslips(1L, request);
+        return response.failed() > 0 && response.requested() == 0
+                ? ResponseEntity.badRequest().body(response)
+                : ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/api/payroll/past-payslips/email")
+    @ResponseBody
+    public ResponseEntity<PayslipEmailResponse> emailPastPayslips(@RequestBody PastPayslipEmailRequest request) {
+        PayslipEmailResponse response = paySlipEmailService.emailPastPayslips(1L, request);
         return response.failed() > 0 && response.requested() == 0
                 ? ResponseEntity.badRequest().body(response)
                 : ResponseEntity.ok(response);

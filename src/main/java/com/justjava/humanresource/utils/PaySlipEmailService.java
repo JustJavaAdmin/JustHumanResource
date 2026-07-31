@@ -5,6 +5,7 @@ import com.justjava.humanresource.core.enums.PayrollRunStatus;
 import com.justjava.humanresource.hr.entity.Employee;
 import com.justjava.humanresource.hr.service.EmployeeService;
 import com.justjava.humanresource.hr.service.JobHrEmployeeAccessService;
+import com.justjava.humanresource.payroll.dto.PastPayslipEmailRequest;
 import com.justjava.humanresource.payroll.dto.PayslipEmailRequest;
 import com.justjava.humanresource.payroll.dto.PayslipEmailResponse;
 import com.justjava.humanresource.payroll.dto.PayslipEmailResult;
@@ -85,6 +86,67 @@ public class PaySlipEmailService {
         return new PayslipEmailResponse(employeeIds.size(), sent, skipped, failed, results);
     }
 
+    public PayslipEmailResponse emailPastPayslips(Long companyId, PastPayslipEmailRequest request) {
+        List<Long> requestedPaySlipIds = request != null && request.paySlipIds() != null
+                ? request.paySlipIds()
+                : List.of();
+
+        LinkedHashSet<Long> paySlipIds = requestedPaySlipIds.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (paySlipIds.isEmpty()) {
+            return new PayslipEmailResponse(
+                    0,
+                    0,
+                    0,
+                    1,
+                    List.of(new PayslipEmailResult(null, null, null, "FAILED", "Select at least one payslip.", null))
+            );
+        }
+
+        Map<Long, PaySlipDTO> paySlipsById = paySlipService.getAllClosedPeriodPaySlips(companyId).stream()
+                .filter(ps -> paySlipIds.contains(ps.getId()))
+                .collect(Collectors.toMap(PaySlipDTO::getId, ps -> ps, (first, second) -> first));
+
+        List<PayslipEmailResult> results = new ArrayList<>();
+        for (Long paySlipId : paySlipIds) {
+            results.add(sendPastPayslip(paySlipsById.get(paySlipId)));
+        }
+
+        int sent = (int) results.stream().filter(result -> "SENT".equals(result.status())).count();
+        int skipped = (int) results.stream().filter(result -> "SKIPPED".equals(result.status())).count();
+        int failed = (int) results.stream().filter(result -> "FAILED".equals(result.status())).count();
+
+        return new PayslipEmailResponse(paySlipIds.size(), sent, skipped, failed, results);
+    }
+
+    private PayslipEmailResult sendPastPayslip(PaySlipDTO paySlip) {
+        if (paySlip == null) {
+            return new PayslipEmailResult(null, null, null, "FAILED", "Payslip record was not found.", null);
+        }
+
+        Long employeeId = paySlip.getEmployeeId();
+        Employee employee;
+        try {
+            employee = employeeService.getById(employeeId);
+        } catch (Exception e) {
+            return new PayslipEmailResult(employeeId, paySlip.getEmployeeName(), null, "FAILED", "Employee record was not found.", null);
+        }
+
+        String employeeName = employee.getFullName();
+        String email = employee.getEmail();
+
+        if (!canAccessPayrollEmployee(employee)) {
+            return new PayslipEmailResult(employeeId, employeeName, email, "SKIPPED", "Employee is outside your payroll access scope.", null);
+        }
+        if (email == null || email.isBlank()) {
+            return new PayslipEmailResult(employeeId, employeeName, email, "SKIPPED", "Employee has no email address.", null);
+        }
+
+        return sendPayslipEmail(employeeId, employeeName, email, paySlip);
+    }
+
     private PayslipEmailResult sendCurrentPayslip(
             Long employeeId,
             Set<Long> visibleEmployeeIds,
@@ -112,9 +174,13 @@ public class PaySlipEmailService {
             return new PayslipEmailResult(employeeId, employeeName, email, "SKIPPED", "No current payslip is available for this employee.", null);
         }
 
+        return sendPayslipEmail(employeeId, employeeName, email, paySlip);
+    }
+
+    private PayslipEmailResult sendPayslipEmail(Long employeeId, String employeeName, String email, PaySlipDTO paySlip) {
         try {
             byte[] pdf = paySlipPdfService.generate(paySlip);
-            String month = paySlip.getPayDate() != null ? paySlip.getPayDate().format(PAYSLIP_MONTH_FORMAT) : "current period";
+            String month = paySlip.getPayDate() != null ? paySlip.getPayDate().format(PAYSLIP_MONTH_FORMAT) : "the selected period";
             String filename = "payslip_" + employeeId + "_" + (paySlip.getPayDate() != null
                     ? paySlip.getPayDate().format(PAYSLIP_FILE_MONTH_FORMAT)
                     : "current") + ".pdf";
