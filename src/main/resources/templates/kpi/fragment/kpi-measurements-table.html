@@ -5,7 +5,7 @@
     <title>KPI Measurements Table Fragment</title>
 </head>
 <body>
-<div id="measurementsTable">
+<div id="measurementsTable" th:data-period="${selectedPeriod}">
     <table class="w-full">
         <thead class="bg-gray-50 dark:bg-gray-750">
         <tr>
@@ -170,10 +170,7 @@
             if (!response.ok) {
                 return response.text().then(text => { throw new Error(text || 'Save failed'); });
             }
-            htmx.ajax('GET', '/fragments/kpi-measurements-table', {
-                target: '#measurementsTable',
-                swap: 'innerHTML'
-            });
+            refreshSelectedMeasurementsTable();
         })
         .catch(err => {
             console.error('Failed to update measurement:', err);
@@ -189,9 +186,20 @@
      * Cancels edit and refreshes table back to clean server state.
      */
     function cancelEditMeasurement(measurementId) {
-        htmx.ajax('GET', '/fragments/kpi-measurements-table', {
+        refreshSelectedMeasurementsTable();
+    }
+
+    function refreshSelectedMeasurementsTable() {
+        if (typeof loadMeasurementsTable === 'function') {
+            loadMeasurementsTable();
+            return;
+        }
+
+        const select = document.getElementById('measurementTablePeriod');
+        const period = select && select.value ? '?period=' + encodeURIComponent(select.value) : '';
+        htmx.ajax('GET', '/fragments/kpi-measurements-table' + period, {
             target: '#measurementsTable',
-            swap: 'innerHTML'
+            swap: 'outerHTML'
         });
     }
 </script>

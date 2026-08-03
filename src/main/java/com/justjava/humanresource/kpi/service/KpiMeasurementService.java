@@ -227,14 +227,9 @@ public class KpiMeasurementService {
         if (period == null)
             throw new IllegalArgumentException("Period is required");
 
-        LocalDate referenceDate = period.plusMonths(1).atEndOfMonth();
-
-        System.out.println("Fetching effective measurements for period: " + period + " (reference date: " + referenceDate + ")");
+        System.out.println("Fetching measurements for period: " + period);
         List<KpiMeasurement> measurements =
-                measurementRepository.findAllEffectiveMeasurementsForPeriod(
-                        period,
-                        referenceDate
-                );
+                measurementRepository.findAllDetailedByPeriod(period);
 
         if (measurements.isEmpty()) {
             return Collections.emptyList();

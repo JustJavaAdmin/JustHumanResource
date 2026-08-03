@@ -397,10 +397,15 @@ public class KpiController {
         return "kpi/fragment/measurement-form-items-fragment :: kpi-measurement-items";
     }
     @GetMapping("/fragments/kpi-measurements-table")
-    public String getKpiMeasurementsTable(Model model) {
-        List<KpiMeasurementResponseDTO> measurements = kpiMeasurementService.getAllEffectiveMeasurements(YearMonth.now().minusMonths(1));
+    public String getKpiMeasurementsTable(
+            @RequestParam(value = "period", required = false) String periodStr,
+            Model model
+    ) {
+        YearMonth period = resolveMeasurementTablePeriod(periodStr);
+        List<KpiMeasurementResponseDTO> measurements = kpiMeasurementService.getAllEffectiveMeasurements(period);
 
         model.addAttribute("measurements", measurements);
+        model.addAttribute("selectedPeriod", period);
         return "kpi/fragment/kpi-measurements-table";
     }
     @PostMapping("/kpi/measurements")
@@ -409,8 +414,10 @@ public class KpiController {
         kpiMeasurementService.recordBulkMeasurements(request);
         System.out.println("Successfully recorded KPI measurements for employee ID: " + request.getEmployeeId());
 
-        List<KpiMeasurementResponseDTO> measurements = kpiMeasurementService.getAllEffectiveMeasurements(YearMonth.now().minusMonths(1));
+        YearMonth period = request.getPeriod();
+        List<KpiMeasurementResponseDTO> measurements = kpiMeasurementService.getAllEffectiveMeasurements(period);
         model.addAttribute("measurements", measurements);
+        model.addAttribute("selectedPeriod", period);
         return "kpi/fragment/kpi-measurements-table";
     }
     @PostMapping("/kpi/measurements/{id}/edit")
@@ -419,11 +426,13 @@ public class KpiController {
             @RequestParam BigDecimal actualValue,
             Model model
     ) {
-        kpiMeasurementService.updateMeasurement(measurementId, actualValue);
+        KpiMeasurementResponseDTO updatedMeasurement =
+                kpiMeasurementService.updateMeasurement(measurementId, actualValue);
 
         List<KpiMeasurementResponseDTO> measurements =
-                kpiMeasurementService.getAllEffectiveMeasurements(YearMonth.now().minusMonths(1));
+                kpiMeasurementService.getAllEffectiveMeasurements(updatedMeasurement.getPeriod());
         model.addAttribute("measurements", measurements);
+        model.addAttribute("selectedPeriod", updatedMeasurement.getPeriod());
 
         return "kpi/fragment/kpi-measurements-table";
     }
@@ -776,8 +785,8 @@ public class KpiController {
             @RequestParam("period") String        periodStr,
             Model model
     ) {
+        YearMonth period = resolveMeasurementTablePeriod(periodStr);
         try {
-            YearMonth period = YearMonth.parse(periodStr);
 
             KpiCsvUploadResultDTO result =
                     kpiCsvUploadService.uploadCsv(file, kpiId, period);
@@ -802,12 +811,21 @@ public class KpiController {
 
         // Reload the measurements table (same target as manual entry)
         List<KpiMeasurementResponseDTO> measurements =
-                kpiMeasurementService.getAllEffectiveMeasurements(YearMonth.now().minusMonths(1));
+                kpiMeasurementService.getAllEffectiveMeasurements(period);
         model.addAttribute("measurements", measurements);
+        model.addAttribute("selectedPeriod", period);
 
         // Return the measurements table fragment so HTMX swaps only the table area.
         // The banner attributes are available in the same fragment scope.
         return "kpi/fragment/kpi-measurements-table";
+    }
+
+    private YearMonth resolveMeasurementTablePeriod(String periodStr) {
+        if (periodStr == null || periodStr.isBlank()) {
+            return YearMonth.now();
+        }
+
+        return YearMonth.parse(periodStr);
     }
 
 
