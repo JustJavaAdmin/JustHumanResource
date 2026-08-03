@@ -77,6 +77,7 @@ public interface KpiMeasurementRepository
        JOIN FETCH m.employee e
        JOIN FETCH m.kpi k
        WHERE m.period = :period
+       ORDER BY m.recordedAt DESC, e.lastName ASC, e.firstName ASC, k.name ASC
        """)
     List<KpiMeasurement> findAllDetailedByPeriod(
             @Param("period") YearMonth period
