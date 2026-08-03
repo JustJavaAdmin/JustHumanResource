@@ -38,6 +38,10 @@ public interface PayrollPeriodService {
      */
     void closeAndOpenNext(Long companyId);
 
+    void closeAndOpenNext(Long companyId, LocalDate actualPeriodEnd);
+
+    PayrollPeriod extendOpenPeriodEnd(Long companyId, LocalDate newPeriodEnd);
+
     /**
      * Returns the currently OPEN period for a company.
      */
@@ -83,6 +87,11 @@ public interface PayrollPeriodService {
      */
     void initiatePeriodCloseApproval(
             Long companyId
+    );
+
+    void initiatePeriodCloseApproval(
+            Long companyId,
+            LocalDate actualPeriodEnd
     );
 
     PayrollPeriod findById(Long id);

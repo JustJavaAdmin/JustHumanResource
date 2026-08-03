@@ -11,6 +11,8 @@ import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.JavaDelegate;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+
 @Slf4j
 @Component("closePeriodDelegate")
 @RequiredArgsConstructor
@@ -25,6 +27,7 @@ public class ClosePeriodDelegate implements JavaDelegate {
 
         Long periodId = getRequiredLong(execution, "periodId");
         Long companyId = getRequiredLong(execution, "companyId");
+        LocalDate actualPeriodEnd = getOptionalLocalDate(execution, "actualPeriodEnd");
         String approvedBy = (String) execution.getVariable("approvedBy");
 
         PayrollPeriod period = periodRepository.findById(periodId)
@@ -52,7 +55,10 @@ public class ClosePeriodDelegate implements JavaDelegate {
            CLOSE AND OPEN NEXT PERIOD (SERVICE CONTROLLED)
            ============================================================ */
 
-        payrollPeriodService.closeAndOpenNext(period.getCompanyId());
+        payrollPeriodService.closeAndOpenNext(
+                period.getCompanyId(),
+                actualPeriodEnd != null ? actualPeriodEnd : period.getPeriodEnd()
+        );
 
         /* ============================================================
            AUDIT TRAIL
@@ -82,5 +88,28 @@ public class ClosePeriodDelegate implements JavaDelegate {
         }
 
         return (Long) value;
+    }
+
+    private LocalDate getOptionalLocalDate(
+            DelegateExecution execution,
+            String variableName) {
+
+        Object value = execution.getVariable(variableName);
+
+        if (value == null) {
+            return null;
+        }
+
+        if (value instanceof LocalDate localDate) {
+            return localDate;
+        }
+
+        if (value instanceof String text) {
+            return LocalDate.parse(text);
+        }
+
+        throw new IllegalStateException(
+                "Invalid process variable: " + variableName
+        );
     }
 }

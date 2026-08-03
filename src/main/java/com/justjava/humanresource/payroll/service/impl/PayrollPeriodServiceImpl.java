@@ -19,9 +19,9 @@ import com.justjava.humanresource.hr.entity.Employee;
 import java.util.stream.Collectors;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -62,10 +62,16 @@ public class PayrollPeriodServiceImpl implements PayrollPeriodService {
                     "Company already has an OPEN payroll period.");
         }
 
+        if (repository.existsOverlappingPeriod(companyId, periodStart, periodEnd)) {
+            throw new IllegalStateException(
+                    "Payroll period overlaps an existing period for this company.");
+        }
+
         PayrollPeriod period = new PayrollPeriod();
         period.setCompanyId(companyId);
         period.setPeriodStart(periodStart);
         period.setPeriodEnd(periodEnd);
+        period.setPlannedPeriodEnd(periodEnd);
         period.setStatus(PayrollPeriodStatus.OPEN);
 
         return repository.save(period);
@@ -78,12 +84,28 @@ public class PayrollPeriodServiceImpl implements PayrollPeriodService {
     @Override
     @Transactional
     public void closeAndOpenNext(Long companyId) {
+        PayrollPeriod current = getOpenPeriod(companyId);
+        if (current == null) {
+            throw new IllegalStateException("No open payroll period found.");
+        }
+        closeAndOpenNext(companyId, current.getPeriodEnd());
+    }
+
+    @Override
+    @Transactional
+    public void closeAndOpenNext(Long companyId, LocalDate actualPeriodEnd) {
 
         // ---------------------------------------------------------
         // 1. Get Current OPEN Period
         // ---------------------------------------------------------
 
         PayrollPeriod current = getOpenPeriod(companyId);
+
+        if (current == null) {
+            throw new IllegalStateException("No open payroll period found.");
+        }
+
+        validateActualPeriodEnd(current, actualPeriodEnd);
 
         // ---------------------------------------------------------
         // 2. Validate All Runs Are POSTED
@@ -94,7 +116,7 @@ public class PayrollPeriodServiceImpl implements PayrollPeriodService {
                         .countLatestByCompanyAndPayrollDateBetweenAndStatusNot(
                                 companyId,
                                 current.getPeriodStart(),
-                                current.getPeriodEnd(),
+                                actualPeriodEnd,
                                 PayrollRunStatus.POSTED
                         );
 
@@ -108,6 +130,11 @@ public class PayrollPeriodServiceImpl implements PayrollPeriodService {
         // 3. Close Current Period
         // ---------------------------------------------------------
 
+        current.setPeriodEnd(actualPeriodEnd);
+        if (current.getPlannedPeriodEnd() == null) {
+            current.setPlannedPeriodEnd(actualPeriodEnd);
+        }
+        current.setClosedOn(LocalDate.now());
         current.setStatus(PayrollPeriodStatus.CLOSED);
         repository.save(current);
 
@@ -115,18 +142,15 @@ public class PayrollPeriodServiceImpl implements PayrollPeriodService {
         // 4. Compute Next Period Range
         // ---------------------------------------------------------
 
-        long cycleDays =
-                current.getPeriodEnd().toEpochDay()
-                        - current.getPeriodStart().toEpochDay()
-                        + 1;
-
-        LocalDate nextStart = current.getPeriodEnd().plusDays(1);
-        LocalDate nextEnd = nextStart.plusDays(cycleDays - 1);
+        LocalDate nextStart = actualPeriodEnd.plusDays(1);
+        LocalDate nextEnd = calculateNextPeriodEnd(current, nextStart);
 
         PayrollPeriod next = new PayrollPeriod();
         next.setCompanyId(companyId);
         next.setPeriodStart(nextStart);
         next.setPeriodEnd(nextEnd);
+        next.setPlannedPeriodEnd(nextEnd);
+        next.setCycleLengthDays(current.getCycleLengthDays());
         next.setStatus(PayrollPeriodStatus.OPEN);
 
         repository.save(next);
@@ -157,11 +181,61 @@ public class PayrollPeriodServiceImpl implements PayrollPeriodService {
                 Map.of(
                         "companyId", companyId,
                         "oldPeriodStart", current.getPeriodStart(),
-                        "oldPeriodEnd", current.getPeriodEnd(),
+                        "oldPeriodEnd", actualPeriodEnd,
                         "newPeriodStart", nextStart,
                         "newPeriodEnd", nextEnd
                 )
         );
+    }
+
+    private void validateActualPeriodEnd(PayrollPeriod current, LocalDate actualPeriodEnd) {
+        if (actualPeriodEnd == null) {
+            throw new IllegalArgumentException("Actual period end cannot be null.");
+        }
+
+        if (actualPeriodEnd.isBefore(current.getPeriodStart())) {
+            throw new IllegalArgumentException("Actual period end cannot be before period start.");
+        }
+
+        if (actualPeriodEnd.isBefore(current.getPeriodEnd())) {
+            throw new IllegalArgumentException("Actual period end cannot shorten the current period.");
+        }
+
+        if (repository.existsOverlappingPeriodExcludingId(
+                current.getCompanyId(),
+                current.getId(),
+                current.getPeriodStart(),
+                actualPeriodEnd)) {
+            throw new IllegalStateException(
+                    "Extended payroll period overlaps an existing period for this company.");
+        }
+    }
+
+    private LocalDate calculateNextPeriodEnd(PayrollPeriod previous, LocalDate nextStart) {
+        if (previous.getCycleLengthDays() != null && previous.getCycleLengthDays() > 0) {
+            return nextStart.plusDays(previous.getCycleLengthDays() - 1L);
+        }
+
+        return YearMonth.from(nextStart).atEndOfMonth();
+    }
+
+    @Override
+    @Transactional
+    public PayrollPeriod extendOpenPeriodEnd(Long companyId, LocalDate newPeriodEnd) {
+        PayrollPeriod open = getOpenPeriod(companyId);
+
+        if (open == null) {
+            throw new IllegalStateException("No open payroll period found.");
+        }
+
+        validateActualPeriodEnd(open, newPeriodEnd);
+
+        open.setPeriodEnd(newPeriodEnd);
+        if (open.getPlannedPeriodEnd() == null) {
+            open.setPlannedPeriodEnd(newPeriodEnd);
+        }
+
+        return repository.save(open);
     }
     /* ============================================================
        GET OPEN PERIOD
@@ -268,6 +342,16 @@ public class PayrollPeriodServiceImpl implements PayrollPeriodService {
     @Override
     @Transactional
     public void initiatePeriodCloseApproval(Long companyId) {
+        PayrollPeriod open = getOpenPeriod(companyId);
+        if (open == null) {
+            throw new IllegalStateException("No open payroll period found.");
+        }
+        initiatePeriodCloseApproval(companyId, open.getPeriodEnd());
+    }
+
+    @Override
+    @Transactional
+    public void initiatePeriodCloseApproval(Long companyId, LocalDate actualPeriodEnd) {
 
         PayrollPeriod open = getOpenPeriod(companyId);
 
@@ -275,10 +359,18 @@ public class PayrollPeriodServiceImpl implements PayrollPeriodService {
             throw new IllegalStateException("No open payroll period found.");
         }
 
+        validateActualPeriodEnd(open, actualPeriodEnd);
+
+        open.setPeriodEnd(actualPeriodEnd);
+        if (open.getPlannedPeriodEnd() == null) {
+            open.setPlannedPeriodEnd(actualPeriodEnd);
+        }
+        open = repository.save(open);
+
         List<Employee> missingDetails = employeeRepository.findEmployeesMissingBankDetails(
                 companyId,
                 open.getPeriodStart(),
-                open.getPeriodEnd()
+                actualPeriodEnd
         );
 
         if (!missingDetails.isEmpty()) {
@@ -300,7 +392,8 @@ public class PayrollPeriodServiceImpl implements PayrollPeriodService {
                         "companyId", open.getCompanyId(),
                         "periodId", open.getId(),
                         "periodStart", open.getPeriodStart(),
-                        "periodEnd", open.getPeriodEnd()
+                        "periodEnd", actualPeriodEnd,
+                        "actualPeriodEnd", actualPeriodEnd
                 )
         );
     }

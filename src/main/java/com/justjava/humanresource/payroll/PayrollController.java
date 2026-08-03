@@ -37,6 +37,7 @@ import com.justjava.humanresource.workflow.service.FlowableTaskService;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -107,6 +108,7 @@ public class PayrollController {
 
         PayrollPeriod currentPeriod = payrollPeriodService.getCurrentPeriod(1L);
         model.addAttribute("payrollStatus", currentPeriod != null ? currentPeriod.getStatus() : null);
+        model.addAttribute("currentPayrollPeriod", currentPeriod);
         model.addAttribute("allowances", allowances.size());
         model.addAttribute("employees", employees.size());
         model.addAttribute("taxableAllowances", taxableAllowances.size());
@@ -511,22 +513,58 @@ public class PayrollController {
     }
 
     @PostMapping("/setup/payroll/open")
-    public String openPayroll(RedirectAttributes redirectAttributes) {
-        YearMonth yearMonth = YearMonth.now();
-        payrollPeriodService.openInitialPeriod(1L, yearMonth.atDay(1), yearMonth.atEndOfMonth());
-        redirectAttributes.addFlashAttribute("success", "Payroll period opened");
+    public String openPayroll(
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate periodStart,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate periodEnd,
+            RedirectAttributes redirectAttributes) {
+        try {
+            YearMonth yearMonth = YearMonth.now();
+            LocalDate start = periodStart != null ? periodStart : yearMonth.atDay(1);
+            LocalDate end = periodEnd != null ? periodEnd : yearMonth.atEndOfMonth();
+            payrollPeriodService.openInitialPeriod(1L, start, end);
+            redirectAttributes.addFlashAttribute("success", "Payroll period opened");
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
         return "redirect:/payroll";
     }
 
     @PostMapping("/setup/payroll/close")
-    public String closePayroll(RedirectAttributes redirectAttributes) {
+    public String closePayroll(
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate actualPeriodEnd,
+            RedirectAttributes redirectAttributes) {
         try {
-            payrollPeriodService.initiatePeriodCloseApproval(1L);
+            PayrollPeriod currentPeriod = payrollPeriodService.getOpenPeriod(1L);
+            LocalDate closeThrough = actualPeriodEnd != null && currentPeriod != null
+                    ? actualPeriodEnd
+                    : currentPeriod != null ? currentPeriod.getPeriodEnd() : null;
+            payrollPeriodService.initiatePeriodCloseApproval(1L, closeThrough);
             redirectAttributes.addFlashAttribute("success", "Payroll locked!");
-        } catch (IllegalStateException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/payroll/employee-payroll";
+    }
+
+    @PostMapping("/setup/payroll/extend")
+    public String extendPayrollPeriod(
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate actualPeriodEnd,
+            RedirectAttributes redirectAttributes) {
+        try {
+            payrollPeriodService.extendOpenPeriodEnd(1L, actualPeriodEnd);
+            redirectAttributes.addFlashAttribute("success", "Payroll period extended");
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/payroll";
     }
 
 
