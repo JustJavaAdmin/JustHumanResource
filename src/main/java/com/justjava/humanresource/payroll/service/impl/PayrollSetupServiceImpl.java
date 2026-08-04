@@ -373,114 +373,96 @@ public class PayrollSetupServiceImpl implements PayrollSetupService {
     @Transactional
     public void deactivateRemovedAllowancesFromPayGroup(Long payGroupId, List<Long> activeAllowanceIds) {
         List<PayGroupAllowance> existing = payGroupAllowanceRepository.findByPayGroupId(payGroupId);
-        boolean anyDeactivated = false;
+        List<LocalDate> affectedDates = new ArrayList<>();
         for (PayGroupAllowance a : existing) {
             if (a.getStatus() == RecordStatus.ACTIVE
                     && !activeAllowanceIds.contains(a.getAllowance().getId())) {
+                affectedDates.add(a.getEffectiveFrom());
                 a.setStatus(RecordStatus.INACTIVE);
                 payGroupAllowanceRepository.save(a);
-                anyDeactivated = true;
             }
         }
-        if (anyDeactivated
-                && payrollPeriodService.isPayrollDateInOpenPeriod(1L, LocalDate.now())) {
-            payrollChangeOrchestrator.recalculateForPayGroup(payGroupId, LocalDate.now());
-        }
+        recalculatePayGroupAfterRemoval(payGroupId, affectedDates);
     }
 
     @Override
     @Transactional
     public void deactivateRemovedDeductionsFromPayGroup(Long payGroupId, List<Long> activeDeductionIds) {
         List<PayGroupDeduction> existing = payGroupDeductionRepository.findByPayGroupId(payGroupId);
-        boolean anyDeactivated = false;
+        List<LocalDate> affectedDates = new ArrayList<>();
         for (PayGroupDeduction d : existing) {
             if (d.getStatus() == RecordStatus.ACTIVE
                     && !activeDeductionIds.contains(d.getDeduction().getId())) {
+                affectedDates.add(d.getEffectiveFrom());
                 d.setStatus(RecordStatus.INACTIVE);
                 payGroupDeductionRepository.save(d);
-                anyDeactivated = true;
             }
         }
-        if (anyDeactivated
-                && payrollPeriodService.isPayrollDateInOpenPeriod(1L, LocalDate.now())) {
-            payrollChangeOrchestrator.recalculateForPayGroup(payGroupId, LocalDate.now());
-        }
+        recalculatePayGroupAfterRemoval(payGroupId, affectedDates);
     }
 
     @Override
     @Transactional
     public void deactivateRemovedTaxReliefsFromPayGroup(Long payGroupId, List<Long> activeTaxReliefIds) {
         List<PayGroupTaxRelief> existing = payGroupTaxReliefRepository.findByPayGroupId(payGroupId);
-        boolean anyDeactivated = false;
+        List<LocalDate> affectedDates = new ArrayList<>();
         for (PayGroupTaxRelief t : existing) {
             if (t.getStatus() == RecordStatus.ACTIVE
                     && !activeTaxReliefIds.contains(t.getTaxRelief().getId())) {
+                affectedDates.add(t.getEffectiveFrom());
                 t.setStatus(RecordStatus.INACTIVE);
                 payGroupTaxReliefRepository.save(t);
-                anyDeactivated = true;
             }
         }
-        if (anyDeactivated
-                && payrollPeriodService.isPayrollDateInOpenPeriod(1L, LocalDate.now())) {
-            payrollChangeOrchestrator.recalculateForPayGroup(payGroupId, LocalDate.now());
-        }
+        recalculatePayGroupAfterRemoval(payGroupId, affectedDates);
     }
 
     @Override
     @Transactional
     public void deactivateRemovedAllowancesFromEmployee(Long employeeId, List<Long> activeAllowanceIds) {
         List<EmployeeAllowance> existing = employeeAllowanceRepository.findByEmployeeId(employeeId);
-        boolean anyDeactivated = false;
+        List<LocalDate> affectedDates = new ArrayList<>();
         for (EmployeeAllowance a : existing) {
             if (a.getStatus() == RecordStatus.ACTIVE
                     && !activeAllowanceIds.contains(a.getAllowance().getId())) {
+                affectedDates.add(a.getEffectiveFrom());
                 a.setStatus(RecordStatus.INACTIVE);
                 employeeAllowanceRepository.save(a);
-                anyDeactivated = true;
             }
         }
-        if (anyDeactivated
-                && payrollPeriodService.isPayrollDateInOpenPeriod(1L, LocalDate.now())) {
-            payrollChangeOrchestrator.recalculateForEmployee(employeeId, LocalDate.now());
-        }
+        recalculateEmployeeAfterRemoval(employeeId, affectedDates);
     }
 
     @Override
     @Transactional
     public void deactivateRemovedDeductionsFromEmployee(Long employeeId, List<Long> activeDeductionIds) {
         List<EmployeeDeduction> existing = employeeDeductionRepository.findByEmployeeId(employeeId);
-        boolean anyDeactivated = false;
+        List<LocalDate> affectedDates = new ArrayList<>();
         for (EmployeeDeduction d : existing) {
             if (d.getStatus() == RecordStatus.ACTIVE
                     && !activeDeductionIds.contains(d.getDeduction().getId())) {
+                affectedDates.add(d.getEffectiveFrom());
                 d.setStatus(RecordStatus.INACTIVE);
                 employeeDeductionRepository.save(d);
-                anyDeactivated = true;
             }
         }
-        if (anyDeactivated
-                && payrollPeriodService.isPayrollDateInOpenPeriod(1L, LocalDate.now())) {
-            payrollChangeOrchestrator.recalculateForEmployee(employeeId, LocalDate.now());
-        }
+        recalculateEmployeeAfterRemoval(employeeId, affectedDates);
     }
 
     @Override
     @Transactional
     public void deactivateRemovedTaxReliefsFromEmployee(Long employeeId, List<Long> activeTaxReliefIds) {
         List<EmployeeTaxRelief> existing = employeeTaxReliefRepository.findByEmployeeId(employeeId);
-        boolean anyDeactivated = false;
+        List<LocalDate> affectedDates = new ArrayList<>();
         for (EmployeeTaxRelief t : existing) {
             if (t.getStatus() == RecordStatus.ACTIVE
                     && !activeTaxReliefIds.contains(t.getTaxRelief().getId())) {
+                affectedDates.add(t.getEffectiveFrom());
                 t.setStatus(RecordStatus.INACTIVE);
                 employeeTaxReliefRepository.save(t);
-                anyDeactivated = true;
             }
         }
-        if (anyDeactivated
-                && payrollPeriodService.isPayrollDateInOpenPeriod(1L, LocalDate.now())) {
-            payrollChangeOrchestrator.recalculateForEmployee(employeeId, LocalDate.now());
-        }
+        recalculateEmployeeAfterRemoval(employeeId, affectedDates);
     }
 
     @Override
@@ -971,6 +953,41 @@ public class PayrollSetupServiceImpl implements PayrollSetupService {
         }
         return new ArrayList<>(map.values());
     }
+
+    private void recalculateEmployeeAfterRemoval(Long employeeId, List<LocalDate> affectedDates) {
+        determineRemovalAffectedPayrollDate(affectedDates)
+                .ifPresent(affectedDate ->
+                        payrollChangeOrchestrator.recalculateForEmployee(employeeId, affectedDate));
+    }
+
+    private void recalculatePayGroupAfterRemoval(Long payGroupId, List<LocalDate> affectedDates) {
+        determineRemovalAffectedPayrollDate(affectedDates)
+                .ifPresent(affectedDate ->
+                        payrollChangeOrchestrator.recalculateForPayGroup(payGroupId, affectedDate));
+    }
+
+    private Optional<LocalDate> determineRemovalAffectedPayrollDate(List<LocalDate> affectedDates) {
+        if (affectedDates == null || affectedDates.isEmpty()) {
+            return Optional.empty();
+        }
+
+        PayrollPeriod openPeriod = payrollPeriodService.getOpenPeriod(1L);
+        if (openPeriod == null) {
+            return Optional.empty();
+        }
+
+        LocalDate affectedDate = affectedDates.stream()
+                .filter(Objects::nonNull)
+                .min(LocalDate::compareTo)
+                .orElse(openPeriod.getPeriodStart());
+
+        if (affectedDate.isAfter(openPeriod.getPeriodEnd())) {
+            return Optional.empty();
+        }
+
+        return Optional.of(affectedDate);
+    }
+
     private LocalDate determineAffectedPayrollDate(
             List<? extends Object> requests) {
 

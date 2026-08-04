@@ -173,17 +173,17 @@ public class PayrollPeriodServiceImpl implements PayrollPeriodService {
         }
 
         // ---------------------------------------------------------
-        // 6. Carry Forward (Flowable Driven)
+        // 6. Calculate payroll for the new OPEN period
         // ---------------------------------------------------------
 
         runtimeService.startProcessInstanceByKey(
-                "payrollCarryForwardProcess",
+                "batchPayrollProcess",
+                "BATCH_PERIOD_" + next.getId(),
                 Map.of(
+                        "periodId", next.getId(),
                         "companyId", companyId,
-                        "oldPeriodStart", current.getPeriodStart(),
-                        "oldPeriodEnd", actualPeriodEnd,
-                        "newPeriodStart", nextStart,
-                        "newPeriodEnd", nextEnd
+                        "periodStart", nextStart,
+                        "periodEnd", nextEnd
                 )
         );
     }

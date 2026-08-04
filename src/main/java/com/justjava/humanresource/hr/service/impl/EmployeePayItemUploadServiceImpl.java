@@ -54,8 +54,11 @@ public class EmployeePayItemUploadServiceImpl implements EmployeePayItemUploadSe
 
     @Override
     @Transactional
-    public UploadSummary uploadPayItems(MultipartFile file) {
-        LocalDate today = LocalDate.now();
+    public UploadSummary uploadPayItems(MultipartFile file, LocalDate effectiveFrom, LocalDate effectiveTo) {
+        LocalDate resolvedEffectiveFrom = effectiveFrom != null ? effectiveFrom : LocalDate.now();
+        if (effectiveTo != null && effectiveTo.isBefore(resolvedEffectiveFrom)) {
+            throw new IllegalArgumentException("Effective To date cannot be before Effective From date");
+        }
         List<EmployeePayItemUploadDTO> rows = parserService.parse(file);
         if (rows.isEmpty()) {
             return new UploadSummary(0, 0);
@@ -119,62 +122,62 @@ public class EmployeePayItemUploadServiceImpl implements EmployeePayItemUploadSe
             if ("ALLOWANCE".equals(type)) {
                 Allowance allowance = allowanceByCode.get(row.getItemCode().trim().toUpperCase());
 
-                // Reuse existing effectiveFrom if this allowance is already attached, else use today
-                LocalDate effectiveFrom = existingAllowancesByEmployee
+                // Reuse existing effectiveFrom if this allowance is already attached, else use the selected date
+                LocalDate itemEffectiveFrom = existingAllowancesByEmployee
                         .getOrDefault(employeeId, List.of())
                         .stream()
                         .filter(ea -> ea.getAllowance().getId().equals(allowance.getId())
                                 && ea.getStatus() == RecordStatus.ACTIVE)
                         .map(EmployeeAllowance::getEffectiveFrom)
                         .findFirst()
-                        .orElse(today);
+                        .orElse(resolvedEffectiveFrom);
 
                 AllowanceAttachmentRequest request = new AllowanceAttachmentRequest();
                 request.setAllowanceId(allowance.getId());
                 request.setOverridden(overridden);
                 request.setOverrideAmount(row.getOverrideAmount());
-                request.setEffectiveFrom(effectiveFrom);
-                request.setEffectiveTo(null);
+                request.setEffectiveFrom(itemEffectiveFrom);
+                request.setEffectiveTo(effectiveTo);
                 allowanceRequests.computeIfAbsent(employeeId, k -> new ArrayList<>()).add(request);
 
             } else if ("DEDUCTION".equals(type)) {
                 Deduction deduction = deductionByCode.get(row.getItemCode().trim().toUpperCase());
 
-                LocalDate effectiveFrom = existingDeductionsByEmployee
+                LocalDate itemEffectiveFrom = existingDeductionsByEmployee
                         .getOrDefault(employeeId, List.of())
                         .stream()
                         .filter(ed -> ed.getDeduction().getId().equals(deduction.getId())
                                 && ed.getStatus() == RecordStatus.ACTIVE)
                         .map(EmployeeDeduction::getEffectiveFrom)
                         .findFirst()
-                        .orElse(today);
+                        .orElse(resolvedEffectiveFrom);
 
                 DeductionAttachmentRequest request = new DeductionAttachmentRequest();
                 request.setDeductionId(deduction.getId());
                 request.setOverridden(overridden);
                 request.setOverrideAmount(row.getOverrideAmount());
-                request.setEffectiveFrom(effectiveFrom);
-                request.setEffectiveTo(null);
+                request.setEffectiveFrom(itemEffectiveFrom);
+                request.setEffectiveTo(effectiveTo);
                 deductionRequests.computeIfAbsent(employeeId, k -> new ArrayList<>()).add(request);
 
             } else {
                 TaxRelief taxRelief = taxReliefByCode.get(row.getItemCode().trim().toUpperCase());
 
-                LocalDate effectiveFrom = existingTaxReliefsByEmployee
+                LocalDate itemEffectiveFrom = existingTaxReliefsByEmployee
                         .getOrDefault(employeeId, List.of())
                         .stream()
                         .filter(et -> et.getTaxRelief().getId().equals(taxRelief.getId())
                                 && et.getStatus() == RecordStatus.ACTIVE)
                         .map(EmployeeTaxRelief::getEffectiveFrom)
                         .findFirst()
-                        .orElse(today);
+                        .orElse(resolvedEffectiveFrom);
 
                 TaxReliefAttachmentRequest request = new TaxReliefAttachmentRequest();
                 request.setTaxReliefId(taxRelief.getId());
                 request.setOverridden(overridden);
                 request.setOverrideAmount(row.getOverrideAmount());
-                request.setEffectiveFrom(effectiveFrom);
-                request.setEffectiveTo(null);
+                request.setEffectiveFrom(itemEffectiveFrom);
+                request.setEffectiveTo(effectiveTo);
                 taxReliefRequests.computeIfAbsent(employeeId, k -> new ArrayList<>()).add(request);
             }
         }

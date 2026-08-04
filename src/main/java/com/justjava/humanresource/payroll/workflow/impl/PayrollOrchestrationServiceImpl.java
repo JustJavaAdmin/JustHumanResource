@@ -287,7 +287,7 @@ public class PayrollOrchestrationServiceImpl implements PayrollOrchestrationServ
             BigDecimal kpiScore =
                     kpiMeasurementService.getEmployeeKpiScore(
                             employee.getId(),
-                            YearMonth.from(payrollDate).minusMonths(1)
+                            YearMonth.from(payrollDate)
                     );
 
             System.out.println(" the KPI Score ===" + kpiScore);

@@ -335,9 +335,13 @@ public class EmployeeController {
 
     @PostMapping("/employees/pay-items/upload-csv")
     @ResponseBody
-    public ResponseEntity<?> uploadEmployeePayItemsCsv(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> uploadEmployeePayItemsCsv(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("effectiveFrom") LocalDate effectiveFrom,
+            @RequestParam(value = "effectiveTo", required = false) LocalDate effectiveTo) {
         try {
-            EmployeePayItemUploadService.UploadSummary summary = employeePayItemUploadService.uploadPayItems(file);
+            EmployeePayItemUploadService.UploadSummary summary =
+                    employeePayItemUploadService.uploadPayItems(file, effectiveFrom, effectiveTo);
             return ResponseEntity.ok(Map.of(
                     "message", "Employee pay items uploaded successfully",
                     "totalRows", summary.totalRows(),
@@ -351,6 +355,11 @@ public class EmployeeController {
             body.put("invalidRowCount", ex.getRowErrors().size());
             body.put("rowErrors", ex.getRowErrors());
             return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+        } catch (IllegalArgumentException ex) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("error", "INVALID_DATE_RANGE");
+            body.put("message", ex.getMessage());
+            return ResponseEntity.badRequest().body(body);
         }
     }
 
