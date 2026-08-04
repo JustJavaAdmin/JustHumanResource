@@ -49,6 +49,33 @@ public interface PayrollPeriodRepository
             LocalDate periodStart,
             LocalDate periodEnd
     );
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM PayrollPeriod p
+        WHERE p.companyId = :companyId
+          AND p.periodStart <= :periodEnd
+          AND p.periodEnd >= :periodStart
+    """)
+    boolean existsOverlappingPeriod(
+            @org.springframework.data.repository.query.Param("companyId") Long companyId,
+            @org.springframework.data.repository.query.Param("periodStart") LocalDate periodStart,
+            @org.springframework.data.repository.query.Param("periodEnd") LocalDate periodEnd
+    );
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM PayrollPeriod p
+        WHERE p.companyId = :companyId
+          AND p.id <> :periodId
+          AND p.periodStart <= :periodEnd
+          AND p.periodEnd >= :periodStart
+    """)
+    boolean existsOverlappingPeriodExcludingId(
+            @org.springframework.data.repository.query.Param("companyId") Long companyId,
+            @org.springframework.data.repository.query.Param("periodId") Long periodId,
+            @org.springframework.data.repository.query.Param("periodStart") LocalDate periodStart,
+            @org.springframework.data.repository.query.Param("periodEnd") LocalDate periodEnd
+    );
+
     Optional<PayrollPeriod> findByCompanyIdAndStatusIn(
             Long companyId,
             List<PayrollPeriodStatus> statuses

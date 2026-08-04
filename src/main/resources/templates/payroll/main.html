@@ -93,6 +93,10 @@
                 </p>
             </div>
         </div>
+        <div class="flex items-center gap-3">
+            <button onclick="openToggleModal('extend')" class="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">Extend Period</button>
+            <button onclick="openToggleModal('deactivate')" class="px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600 transition-colors">Close Period</button>
+        </div>
     </div>
 
     <!-- Stats Cards -->
@@ -351,6 +355,22 @@
                     <p id="toggleModalMessage" class="text-gray-600 dark:text-gray-400 mb-6">Are you sure you want to change payroll status?</p>
                     <!-- Dynamic form: action set by JavaScript, includes CSRF automatically if using Thymeleaf security -->
                     <form id="togglePayrollForm" method="post" onsubmit="return disableSubmitButton(this);">
+                        <div id="openPeriodFields" class="space-y-4 mb-6 hidden">
+                            <label class="block">
+                                <span class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Period start</span>
+                                <input id="periodStartInput" name="periodStart" type="date" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                            </label>
+                            <label class="block">
+                                <span class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Period end</span>
+                                <input id="periodEndInput" name="periodEnd" type="date" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                            </label>
+                        </div>
+                        <div id="closePeriodFields" class="space-y-4 mb-6 hidden">
+                            <label class="block">
+                                <span class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Close period through</span>
+                                <input id="actualPeriodEndInput" name="actualPeriodEnd" type="date" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                            </label>
+                        </div>
                         <div class="flex justify-end space-x-3">
                             <button type="button" onclick="closeModal('togglePayrollModal')" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
                             <button id="toggleConfirmBtn" type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">Confirm</button>
@@ -361,7 +381,10 @@
         </div>
     </div>
 
-    <script>
+    <script th:inline="javascript">
+        const currentPeriodStart = /*[[${currentPayrollPeriod != null ? currentPayrollPeriod.periodStart : null}]]*/ null;
+        const currentPeriodEnd = /*[[${currentPayrollPeriod != null ? currentPayrollPeriod.periodEnd : null}]]*/ null;
+
         // Modal control functions
         function openModal(modalId) {
             document.getElementById(modalId).classList.remove('hidden');
@@ -374,7 +397,7 @@
         }
 
         // Toggle payroll status logic with dynamic modal configuration
-        let currentAction = ''; // 'activate' or 'deactivate'
+        let currentAction = ''; // 'activate', 'extend', or 'deactivate'
 
         function openToggleModal(action) {
             currentAction = action;
@@ -383,21 +406,55 @@
             const message = document.getElementById('toggleModalMessage');
             const confirmBtn = document.getElementById('toggleConfirmBtn');
             const form = document.getElementById('togglePayrollForm');
+            const openFields = document.getElementById('openPeriodFields');
+            const closeFields = document.getElementById('closePeriodFields');
+            const periodStartInput = document.getElementById('periodStartInput');
+            const periodEndInput = document.getElementById('periodEndInput');
+            const actualPeriodEndInput = document.getElementById('actualPeriodEndInput');
+
+            openFields.classList.add('hidden');
+            closeFields.classList.add('hidden');
+            periodStartInput.disabled = true;
+            periodEndInput.disabled = true;
+            actualPeriodEndInput.disabled = true;
 
             if (action === 'activate') {
                 title.innerText = 'Open Payroll Period';
-                message.innerText = 'Are you sure you want to open the payroll period? This will allow processing to begin.';
+                message.innerText = 'Choose the payroll period range to open.';
                 confirmBtn.className = 'px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700';
                 confirmBtn.innerText = 'Open Period';
                 // Set form action to open endpoint
                 form.action = '/setup/payroll/open';  // Adjust if needed: use th:action or context-relative
+                openFields.classList.remove('hidden');
+                periodStartInput.disabled = false;
+                periodEndInput.disabled = false;
+
+                const now = new Date();
+                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+                const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+                periodStartInput.value = periodStartInput.value || monthStart;
+                periodEndInput.value = periodEndInput.value || monthEnd;
+            } else if (action === 'extend') {
+                title.innerText = 'Extend Payroll Period';
+                message.innerText = 'Choose the new final date included in the open payroll period.';
+                confirmBtn.className = 'px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700';
+                confirmBtn.innerText = 'Extend Period';
+                form.action = '/setup/payroll/extend';
+                closeFields.classList.remove('hidden');
+                actualPeriodEndInput.disabled = false;
+                actualPeriodEndInput.min = currentPeriodEnd || currentPeriodStart || '';
+                actualPeriodEndInput.value = currentPeriodEnd || new Date().toISOString().slice(0, 10);
             } else { // deactivate
                 title.innerText = 'Close Payroll Period';
-                message.innerText = 'Are you sure you want to close the payroll period? This will pause all processing.';
+                message.innerText = 'Choose the final date included in this payroll period.';
                 confirmBtn.className = 'px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600';
                 confirmBtn.innerText = 'Close Period';
                 // Set form action to close endpoint
                 form.action = '/setup/payroll/close'; // Adjust if needed
+                closeFields.classList.remove('hidden');
+                actualPeriodEndInput.disabled = false;
+                actualPeriodEndInput.min = currentPeriodEnd || currentPeriodStart || '';
+                actualPeriodEndInput.value = currentPeriodEnd || new Date().toISOString().slice(0, 10);
             }
 
             openModal('togglePayrollModal');

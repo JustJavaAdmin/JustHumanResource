@@ -38,6 +38,12 @@ public class PayrollPeriod extends BaseEntity {
     @Column(name = "period_end", nullable = false)
     private LocalDate periodEnd;
 
+    @Column(name = "planned_period_end")
+    private LocalDate plannedPeriodEnd;
+
+    @Column(name = "closed_on")
+    private LocalDate closedOn;
+
     /* =========================
      * STATUS
      * ========================= */

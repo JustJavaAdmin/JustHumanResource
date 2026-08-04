@@ -114,18 +114,28 @@
                 <p class="text-xs text-gray-500 dark:text-gray-400">CSV: employeeId, itemType, itemCode, overrideAmount</p>
             </div>
         </div>
-        <div class="flex flex-wrap items-center gap-3 md:ml-auto">
+        <div class="flex flex-wrap items-end gap-3 md:ml-auto">
             <a href="#" onclick="downloadPayItemCsvTemplate(); return false;"
-               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 text-xs font-semibold hover:bg-blue-50 dark:hover:bg-blue-900/20">
+               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 text-xs font-semibold hover:bg-blue-50 dark:hover:bg-blue-900/20 self-end">
                 <span class="material-icons-round text-sm">download</span>
                 Download Template
             </a>
+            <div>
+                <label for="payItemCsvEffectiveFrom" class="block text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1">Effective From</label>
+                <input type="date" id="payItemCsvEffectiveFrom"
+                       class="text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-lg px-2.5 py-1.5" />
+            </div>
+            <div>
+                <label for="payItemCsvEffectiveTo" class="block text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1">Effective To <span class="text-gray-400">(optional)</span></label>
+                <input type="date" id="payItemCsvEffectiveTo"
+                       class="text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-lg px-2.5 py-1.5" />
+            </div>
             <input type="file" id="payItemCsvFileInput" accept=".csv"
                    class="text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0
                       file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700
-                      hover:file:bg-blue-100 cursor-pointer" />
+                      hover:file:bg-blue-100 cursor-pointer self-end" />
             <button type="button" onclick="uploadPayItemsCsv()" id="payItemCsvUploadBtn"
-                    class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm">
+                    class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm self-end">
                 <span class="material-icons-round text-sm">cloud_upload</span>
                 Upload Pay Items
             </button>
@@ -1133,6 +1143,20 @@ function editAllowance(id) {
                 showPiToast('Please select a CSV file first', 'error');
                 return;
             }
+
+            const effectiveFromInput = document.getElementById('payItemCsvEffectiveFrom');
+            const effectiveToInput = document.getElementById('payItemCsvEffectiveTo');
+            if (!effectiveFromInput.value) {
+                showPiToast('Please select an Effective From date', 'error');
+                effectiveFromInput.focus();
+                return;
+            }
+            if (effectiveToInput.value && effectiveToInput.value < effectiveFromInput.value) {
+                showPiToast('Effective To date cannot be before Effective From date', 'error');
+                effectiveToInput.focus();
+                return;
+            }
+
             _payItemCsvFileForUpload = file;
             document.getElementById('payItemCsvConflictPanel').classList.add('hidden');
 
@@ -1197,8 +1221,11 @@ rows.push({ idx: idx + 1, employeeId, itemType, itemCode, overrideAmount, errors
                 tbody.appendChild(tr);
             });
 
+            const previewFrom = document.getElementById('payItemCsvEffectiveFrom').value;
+            const previewTo = document.getElementById('payItemCsvEffectiveTo').value;
             document.getElementById('payItemCsvPreviewCount').textContent =
-                rows.length + ' row' + (rows.length !== 1 ? 's' : '') + ' found';
+                rows.length + ' row' + (rows.length !== 1 ? 's' : '') + ' found' +
+                ' \u2022 Effective ' + previewFrom + (previewTo ? ' to ' + previewTo : ' (open-ended)');
 
             const banner = document.getElementById('payItemCsvValidationBanner');
             const confirmBtn = document.getElementById('payItemCsvConfirmUploadBtn');
@@ -1236,6 +1263,11 @@ rows.push({ idx: idx + 1, employeeId, itemType, itemCode, overrideAmount, errors
 
             const formData = new FormData();
             formData.append('file', _payItemCsvFileForUpload);
+            formData.append('effectiveFrom', document.getElementById('payItemCsvEffectiveFrom').value);
+            const effectiveToVal = document.getElementById('payItemCsvEffectiveTo').value;
+            if (effectiveToVal) {
+                formData.append('effectiveTo', effectiveToVal);
+            }
 
             fetch('/employees/pay-items/upload-csv', { method: 'POST', body: formData })
                 .then(async r => {
@@ -1260,6 +1292,8 @@ rows.push({ idx: idx + 1, employeeId, itemType, itemCode, overrideAmount, errors
                     if (!r.ok) throw new Error(data.message || 'Upload failed');
                     closeModal('payItemCsvPreviewModal');
                     document.getElementById('payItemCsvFileInput').value = '';
+                    document.getElementById('payItemCsvEffectiveFrom').value = '';
+                    document.getElementById('payItemCsvEffectiveTo').value = '';
                     _payItemCsvFileForUpload = null;
                     showPiToast('Pay items uploaded successfully (' + (data.successRows || 0) + ' rows)', 'success');
                     setTimeout(() => window.location.reload(), 1200);
