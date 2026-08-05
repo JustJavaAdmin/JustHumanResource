@@ -138,6 +138,50 @@ class HistoricalPayrollAdjustmentServiceImplTest {
     }
 
     @Test
+    void createPostedAmendmentDoesNotAddResidualAdjustmentToNetPay() {
+        PayrollPeriod period = closedPeriod();
+        Employee employee = employee();
+        PayrollRun original = postedRun(10L, employee, 1, PayrollRunType.ORIGINAL);
+        original.setGrossPay(new BigDecimal("1000.00"));
+        original.setGrossDifference(new BigDecimal("500.00"));
+        original.setTotalDeductions(new BigDecimal("100.00"));
+        original.setNetPay(new BigDecimal("900.00"));
+
+        List<PayrollLineItem> originalLines = List.of(
+                line(original, employee, "BASIC", "Basic Salary", "1000.00", PayComponentType.EARNING, true),
+                line(original, employee, "RESIDUAL", "Residual Adjustment", "500.00", PayComponentType.EARNING, false),
+                line(original, employee, "PAYE", "PAYE Tax", "100.00", PayComponentType.DEDUCTION, false)
+        );
+
+        when(payrollPeriodRepository.findById(20L)).thenReturn(Optional.of(period));
+        when(employeeRepository.findById(5L)).thenReturn(Optional.of(employee));
+        when(payrollRunRepository.findLatestPostedRunForEmployeeAndPeriod(5L, period.getPeriodStart(), period.getPeriodEnd()))
+                .thenReturn(Optional.of(original));
+        when(payrollRunRepository.findMaxVersionForEmployeeAndPeriod(5L, period.getPeriodStart(), period.getPeriodEnd()))
+                .thenReturn(1);
+        when(payrollLineItemRepository.findByPayrollRunId(10L)).thenReturn(originalLines);
+        when(payrollRunRepository.save(any(PayrollRun.class))).thenAnswer(invocation -> {
+            PayrollRun run = invocation.getArgument(0);
+            run.setId(11L);
+            return run;
+        });
+        when(paySlipRepository.existsByPayrollRunIdAndVersionNumber(11L, 2)).thenReturn(false);
+
+        PayrollVersionHistoryDTO result = service.createPostedAmendment(command());
+
+        assertEquals(new BigDecimal("1100.00"), result.getNetPay());
+
+        ArgumentCaptor<PayrollRun> runCaptor = ArgumentCaptor.forClass(PayrollRun.class);
+        verify(payrollRunRepository).save(runCaptor.capture());
+        PayrollRun amendment = runCaptor.getValue();
+        assertEquals(new BigDecimal("1200.00"), amendment.getGrossPay());
+        assertEquals(BigDecimal.ZERO, amendment.getNonGrossEarnings());
+        assertEquals(new BigDecimal("500.00"), amendment.getGrossDifference());
+        assertEquals(new BigDecimal("100.00"), amendment.getTotalDeductions());
+        assertEquals(new BigDecimal("1100.00"), amendment.getNetPay());
+    }
+
+    @Test
     void rejectsHistoricalAdjustmentForOpenPeriod() {
         PayrollPeriod period = closedPeriod();
         period.setStatus(PayrollPeriodStatus.OPEN);

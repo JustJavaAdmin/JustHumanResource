@@ -42,6 +42,9 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class HistoricalPayrollAdjustmentServiceImpl implements HistoricalPayrollAdjustmentService {
 
+    private static final String RESIDUAL_COMPONENT_CODE = "RESIDUAL";
+    private static final String RESIDUAL_DESCRIPTION = "Residual Adjustment";
+
     private final EmployeeRepository employeeRepository;
     private final PayrollPeriodRepository payrollPeriodRepository;
     private final PayrollRunRepository payrollRunRepository;
@@ -323,9 +326,14 @@ public class HistoricalPayrollAdjustmentServiceImpl implements HistoricalPayroll
     private void applyTotals(PayrollRun run, List<PayrollLineItem> lines) {
         BigDecimal gross = BigDecimal.ZERO;
         BigDecimal nonGross = BigDecimal.ZERO;
+        BigDecimal grossDifference = BigDecimal.ZERO;
         BigDecimal deductions = BigDecimal.ZERO;
 
         for (PayrollLineItem line : lines) {
+            if (isResidualAdjustment(line)) {
+                grossDifference = grossDifference.add(line.getAmount());
+                continue;
+            }
             if (line.isOutOfPayroll()) {
                 continue;
             }
@@ -342,9 +350,14 @@ public class HistoricalPayrollAdjustmentServiceImpl implements HistoricalPayroll
 
         run.setGrossPay(gross);
         run.setNonGrossEarnings(nonGross);
-        run.setGrossDifference(BigDecimal.ZERO);
+        run.setGrossDifference(grossDifference);
         run.setTotalDeductions(deductions);
         run.setNetPay(gross.add(nonGross).subtract(deductions));
+    }
+
+    private boolean isResidualAdjustment(PayrollLineItem line) {
+        return RESIDUAL_COMPONENT_CODE.equalsIgnoreCase(line.getComponentCode())
+                || RESIDUAL_DESCRIPTION.equalsIgnoreCase(line.getDescription());
     }
 
     private void copyYtdSnapshot(PayrollRun amendment, PayrollRun latest) {

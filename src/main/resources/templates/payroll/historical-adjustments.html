@@ -345,10 +345,15 @@
             const employeeId = document.getElementById('employeeId').value;
             const periodId = document.getElementById('periodId').value;
             const reason = document.getElementById('reason').value.trim();
-            const lines = Array.from(document.querySelectorAll('#adjustmentLines tr')).map(row => ({
-                componentCode: row.querySelector('.line-pay-item').value,
-                correctedAmount: Number(row.querySelector('.line-amount').value)
-            }));
+            const lines = Array.from(document.querySelectorAll('#adjustmentLines tr')).map(row => {
+                const componentCode = row.querySelector('.line-pay-item').value;
+                const payItem = findPayItem(componentCode);
+                return {
+                    componentCode,
+                    componentType: payItem ? payItem.componentType : null,
+                    correctedAmount: Number(row.querySelector('.line-amount').value)
+                };
+            });
 
             if (!employeeId || !periodId || !reason) {
                 throw new Error('Employee, closed period, and amendment reason are required.');
