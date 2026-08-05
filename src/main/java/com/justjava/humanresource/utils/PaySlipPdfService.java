@@ -73,9 +73,6 @@ public class PaySlipPdfService {
 //            renderer.tableRow("Basic Salary", money(paySlip.getBasicSalary()));
             renderer.tableRow("Gross Pay", money(paySlip.getGrossPay()));
             renderer.tableRow("Total Deductions", "-" + money(paySlip.getTotalDeductions()));
-            if (paySlip.getNonGrossEarnings() != null && paySlip.getNonGrossEarnings().compareTo(BigDecimal.ZERO) != 0) {
-                renderer.tableRow("Special Payments", money(paySlip.getNonGrossEarnings()));
-            }
             renderer.tableRow("Net Pay", money(paySlip.getNetPay()));
 
             renderer.close();

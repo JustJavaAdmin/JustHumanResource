@@ -222,21 +222,6 @@
                 </div>
 
                 <div class="space-y-4">
-                    <div th:if="${latestPaySlip.nonGrossEarnings != null and latestPaySlip.nonGrossEarnings > 0}"
-                         class="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-xl p-3">
-                        <div class="flex items-center justify-between mb-2">
-                    <span class="text-[11px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider flex items-center">
-                        <span class="material-icons-round text-sm mr-1">stars</span> Special Payment
-                    </span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-xs text-gray-600 dark:text-gray-400 italic">One-time payment</span>
-                            <span class="text-sm font-bold text-blue-700 dark:text-blue-400">
-                        ₦<span th:text="${#numbers.formatDecimal(latestPaySlip.nonGrossEarnings, 0, 'COMMA', 2, 'POINT')}">0.00</span>
-                    </span>
-                        </div>
-                    </div>
-
                     <div th:if="${futureAllowances != null and not #lists.isEmpty(futureAllowances)}"
                          class="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/50 rounded-xl p-3">
                         <div class="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-2 flex items-center">

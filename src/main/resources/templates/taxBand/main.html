@@ -442,8 +442,22 @@
       <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
         CSV columns: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">lowerBound,upperBound,rate</code>.
         Leave <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">upperBound</code> blank on the last row for an open-ended top band.
-        All bands will be created effective today with status ACTIVE and an auto-generated regime code.
+        All uploaded bands will use the effective dates selected below with status ACTIVE and an auto-generated regime code.
       </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label for="bulkEffectiveFrom" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Effective From *</label>
+          <input id="bulkEffectiveFrom" name="effectiveFrom" type="date" required
+                 class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none">
+        </div>
+        <div>
+          <label for="bulkEffectiveTo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Effective To <span class="text-xs text-gray-500">(leave empty if ongoing)</span></label>
+          <input id="bulkEffectiveTo" name="effectiveTo" type="date"
+                 class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none">
+        </div>
+        <p id="bulkDateError" class="hidden md:col-span-2 text-xs text-red-600 dark:text-red-400"></p>
+      </div>
 
       <button type="button" id="downloadSampleCsvBtn" class="inline-flex items-center space-x-1 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 mb-4">
         <span class="material-icons-round text-sm">file_download</span>
@@ -905,11 +919,39 @@
         const submitBtn = document.getElementById('submitBulkUploadBtn');
         const serverErrorsBox = document.getElementById('csvServerErrors');
         const serverErrorList = document.getElementById('csvServerErrorList');
+        const effectiveFromInput = document.getElementById('bulkEffectiveFrom');
+        const effectiveToInput = document.getElementById('bulkEffectiveTo');
+        const dateError = document.getElementById('bulkDateError');
 
         if (!bulkModal) return;
 
+        let csvReady = false;
+
+        function getDateIssue() {
+          if (!effectiveFromInput.value) return 'Effective from is required';
+          if (effectiveToInput.value && effectiveToInput.value < effectiveFromInput.value) {
+            return 'Effective to cannot be before effective from';
+          }
+          return '';
+        }
+
+        function updateSubmitState(showDateIssue) {
+          const dateIssue = getDateIssue();
+          if (showDateIssue && dateIssue) {
+            dateError.textContent = dateIssue;
+            dateError.classList.remove('hidden');
+          } else {
+            dateError.textContent = '';
+            dateError.classList.add('hidden');
+          }
+          submitBtn.disabled = !csvReady || dateIssue !== '';
+        }
+
         function resetModal() {
           fileInput.value = '';
+          effectiveFromInput.value = '';
+          effectiveToInput.value = '';
+          csvReady = false;
           chosenFileName.textContent = 'No file selected';
           previewSection.classList.add('hidden');
           previewBody.innerHTML = '';
@@ -918,6 +960,8 @@
           serverErrorList.innerHTML = '';
           submitBtn.disabled = true;
           submitBtn.textContent = 'Upload Tax Bands';
+          dateError.textContent = '';
+          dateError.classList.add('hidden');
         }
 
         function openModal() {
@@ -936,6 +980,8 @@
         cancelBulkBtn.addEventListener('click', closeModal);
         bulkBackdrop.addEventListener('click', closeModal);
         chooseFileBtn.addEventListener('click', () => fileInput.click());
+        effectiveFromInput.addEventListener('input', () => updateSubmitState(true));
+        effectiveToInput.addEventListener('input', () => updateSubmitState(true));
 
         if (downloadSampleBtn) {
           downloadSampleBtn.addEventListener('click', () => {
@@ -967,7 +1013,8 @@
           if (lines.length <= 1) {
             previewBody.innerHTML = '<tr><td colspan="5" class="px-3 py-3 text-center text-gray-400">No data rows found</td></tr>';
             previewSummary.textContent = '';
-            submitBtn.disabled = true;
+            csvReady = false;
+            updateSubmitState();
             return;
           }
 
@@ -1026,7 +1073,8 @@
 
           previewBody.innerHTML = html;
           previewSummary.textContent = `${rows.length} row(s) parsed · ${errorCount} with issues`;
-          submitBtn.disabled = errorCount > 0;
+          csvReady = errorCount === 0;
+          updateSubmitState();
         }
 
         fileInput.addEventListener('change', () => {
@@ -1037,7 +1085,8 @@
           if (!file) {
             chosenFileName.textContent = 'No file selected';
             previewSection.classList.add('hidden');
-            submitBtn.disabled = true;
+            csvReady = false;
+            updateSubmitState();
             return;
           }
           chosenFileName.textContent = file.name;
@@ -1051,6 +1100,11 @@
         submitBtn.addEventListener('click', () => {
           const file = fileInput.files[0];
           if (!file) return;
+          const dateIssue = getDateIssue();
+          if (dateIssue) {
+            updateSubmitState(true);
+            return;
+          }
 
           submitBtn.disabled = true;
           submitBtn.textContent = 'Uploading...';
@@ -1059,6 +1113,10 @@
 
           const formData = new FormData();
           formData.append('file', file);
+          formData.append('effectiveFrom', effectiveFromInput.value);
+          if (effectiveToInput.value) {
+            formData.append('effectiveTo', effectiveToInput.value);
+          }
 
           fetch('/tax-band/upload-csv', { method: 'POST', body: formData })
             .then(async (response) => {

@@ -437,7 +437,6 @@ public class PayrollController {
                                 .grossPay(ps.getGrossPay())
                                 .totalDeductions(ps.getTotalDeductions())
                                 .netPay(ps.getNetPay())
-                                .nonGrossEarnings(ps.getNonGrossEarnings())
                                 .allowances(ps.getAllowances())
                                 .deductions(ps.getDeductions())
                                 .futureAllowances(futureAllowances)
