@@ -127,11 +127,11 @@
                             <table class="min-w-full text-sm">
                                 <thead class="bg-gray-50 dark:bg-gray-900/60 text-gray-600 dark:text-gray-300">
                                 <tr>
-                                    <th class="text-left px-3 py-3 font-semibold">Code</th>
-                                    <th class="text-left px-3 py-3 font-semibold">Description</th>
-                                    <th class="text-left px-3 py-3 font-semibold">Type</th>
+                                    <th class="text-left px-3 py-3 font-semibold">Pay Item</th>
                                     <th class="text-right px-3 py-3 font-semibold">Corrected Amount</th>
-                                    <th class="text-center px-3 py-3 font-semibold">Flags</th>
+                                    <th class="text-right px-3 py-3 font-semibold">Original</th>
+                                    <th class="text-right px-3 py-3 font-semibold">Difference</th>
+                                    <th class="text-left px-3 py-3 font-semibold">Rules</th>
                                     <th class="w-12 px-3 py-3"></th>
                                 </tr>
                                 </thead>
@@ -278,11 +278,14 @@
     <script>
         let lineIndex = 0;
         let latestPreview = null;
+        let adjustablePayItems = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.adjustment-tab').forEach(button => {
                 button.addEventListener('click', () => activateTab(button.dataset.tab));
             });
+            document.getElementById('employeeId').addEventListener('change', loadAdjustablePayItems);
+            document.getElementById('periodId').addEventListener('change', loadAdjustablePayItems);
             addAdjustmentLine();
         });
 
@@ -300,30 +303,19 @@
             const row = document.createElement('tr');
             row.dataset.lineIndex = String(lineIndex++);
             row.innerHTML = `
-                <td class="px-3 py-3 align-top">
-                    <input class="line-code form-input text-sm py-2" placeholder="BASIC" required>
-                </td>
-                <td class="px-3 py-3 align-top">
-                    <input class="line-description form-input text-sm py-2" placeholder="Basic Salary">
-                </td>
-                <td class="px-3 py-3 align-top">
-                    <select class="line-type form-input text-sm py-2">
-                        <option value="EARNING">Earning</option>
-                        <option value="DEDUCTION">Deduction</option>
-                        <option value="TAX_RELIEF">Tax Relief</option>
-                        <option value="EMPLOYER_COST">Employer Cost</option>
+                <td class="px-3 py-3 align-top min-w-80">
+                    <select class="line-pay-item form-input text-sm py-2" onchange="handlePayItemChange(this)" required>
+                        <option value="">Select pay item</option>
                     </select>
+                    <p class="line-description text-xs text-gray-500 mt-1"></p>
                 </td>
                 <td class="px-3 py-3 align-top">
-                    <input class="line-amount form-input text-sm py-2 text-right" type="number" min="0" step="0.01" placeholder="0.00" required>
+                    <input class="line-amount form-input text-sm py-2 text-right" type="number" min="0" step="0.01" placeholder="0.00" oninput="updateLineDifference(this.closest('tr'))" required>
                 </td>
-                <td class="px-3 py-3 align-top">
-                    <div class="grid grid-cols-2 gap-x-3 gap-y-2 text-xs text-gray-600 dark:text-gray-300 min-w-52">
-                        <label class="flex items-center gap-1"><input class="line-taxable rounded" type="checkbox"> Taxable</label>
-                        <label class="flex items-center gap-1"><input class="line-pensionable rounded" type="checkbox"> Pensionable</label>
-                        <label class="flex items-center gap-1"><input class="line-part-gross rounded" type="checkbox" checked> Gross</label>
-                        <label class="flex items-center gap-1"><input class="line-out-payroll rounded" type="checkbox"> Out</label>
-                    </div>
+                <td class="px-3 py-3 align-top text-right line-original text-gray-600 dark:text-gray-300">-</td>
+                <td class="px-3 py-3 align-top text-right line-difference font-semibold">-</td>
+                <td class="px-3 py-3 align-top line-rules min-w-52">
+                    <span class="text-gray-400 text-sm">Select item</span>
                 </td>
                 <td class="px-3 py-3 align-top text-right">
                     <button type="button" onclick="removeAdjustmentLine(this)" class="p-2 text-gray-500 hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20" title="Remove line">
@@ -332,6 +324,7 @@
                 </td>
             `;
             tbody.appendChild(row);
+            populatePayItemSelect(row.querySelector('.line-pay-item'));
             latestPreview = null;
             document.getElementById('createAmendmentBtn').disabled = true;
         }
@@ -345,6 +338,7 @@
             button.closest('tr').remove();
             latestPreview = null;
             document.getElementById('createAmendmentBtn').disabled = true;
+            refreshPayItemDropdowns();
         }
 
         function buildCommand() {
@@ -352,15 +346,8 @@
             const periodId = document.getElementById('periodId').value;
             const reason = document.getElementById('reason').value.trim();
             const lines = Array.from(document.querySelectorAll('#adjustmentLines tr')).map(row => ({
-                componentCode: row.querySelector('.line-code').value.trim(),
-                description: row.querySelector('.line-description').value.trim(),
-                componentType: row.querySelector('.line-type').value,
-                correctedAmount: Number(row.querySelector('.line-amount').value),
-                taxable: row.querySelector('.line-taxable').checked,
-                pensionable: row.querySelector('.line-pensionable').checked,
-                partOfGross: row.querySelector('.line-part-gross').checked,
-                outOfPayroll: row.querySelector('.line-out-payroll').checked,
-                taxRelief: row.querySelector('.line-type').value === 'TAX_RELIEF'
+                componentCode: row.querySelector('.line-pay-item').value,
+                correctedAmount: Number(row.querySelector('.line-amount').value)
             }));
 
             if (!employeeId || !periodId || !reason) {
@@ -368,8 +355,12 @@
             }
             for (const line of lines) {
                 if (!line.componentCode || Number.isNaN(line.correctedAmount)) {
-                    throw new Error('Each line requires a component code and corrected amount.');
+                    throw new Error('Each line requires a selected pay item and corrected amount.');
                 }
+            }
+            const selectedCodes = lines.map(line => line.componentCode);
+            if (new Set(selectedCodes).size !== selectedCodes.length) {
+                throw new Error('Each pay item can only be adjusted once.');
             }
 
             return {
@@ -378,6 +369,114 @@
                 reason,
                 lines
             };
+        }
+
+        async function loadAdjustablePayItems() {
+            const employeeId = document.getElementById('employeeId').value;
+            const periodId = document.getElementById('periodId').value;
+            latestPreview = null;
+            document.getElementById('createAmendmentBtn').disabled = true;
+
+            if (!employeeId || !periodId) {
+                adjustablePayItems = [];
+                refreshPayItemDropdowns();
+                return;
+            }
+
+            try {
+                adjustablePayItems = await getJson(`/api/payroll/historical-adjustments/pay-items?employeeId=${employeeId}&periodId=${periodId}`);
+                refreshPayItemDropdowns();
+                if (!adjustablePayItems.length) {
+                    showAlert('No adjustable pay items were found for the selected employee and period.', 'warning');
+                }
+            } catch (error) {
+                adjustablePayItems = [];
+                refreshPayItemDropdowns();
+                showAlert(error.message, 'error');
+            }
+        }
+
+        function populatePayItemSelect(select) {
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">Select pay item</option>' + adjustablePayItems.map(item => {
+                const label = `${item.componentCode} - ${item.description || item.componentCode} (${formatMoney(item.currentAmount)})`;
+                return `<option value="${escapeHtml(item.componentCode)}">${escapeHtml(label)}</option>`;
+            }).join('');
+            select.value = currentValue;
+            updatePayItemOptionAvailability();
+        }
+
+        function refreshPayItemDropdowns() {
+            document.querySelectorAll('.line-pay-item').forEach(select => {
+                populatePayItemSelect(select);
+                handlePayItemChange(select, false);
+            });
+        }
+
+        function handlePayItemChange(select, shouldRefresh = true) {
+            const row = select.closest('tr');
+            const item = findPayItem(select.value);
+            const amountInput = row.querySelector('.line-amount');
+            const description = row.querySelector('.line-description');
+            const original = row.querySelector('.line-original');
+            const rules = row.querySelector('.line-rules');
+
+            if (!item) {
+                amountInput.value = '';
+                description.textContent = '';
+                original.textContent = '-';
+                rules.innerHTML = '<span class="text-gray-400 text-sm">Select item</span>';
+                row.querySelector('.line-difference').textContent = '-';
+                return;
+            }
+
+            description.textContent = item.componentType;
+            original.textContent = formatMoney(item.currentAmount);
+            if (!amountInput.value) {
+                amountInput.value = Number(item.currentAmount || 0).toFixed(2);
+            }
+            rules.innerHTML = renderFlags({
+                taxable: item.taxable,
+                pensionable: item.pensionable,
+                partOfGross: item.partOfGross,
+                outOfPayroll: item.outOfPayroll
+            });
+            updateLineDifference(row);
+            if (shouldRefresh) {
+                updatePayItemOptionAvailability();
+            }
+            latestPreview = null;
+            document.getElementById('createAmendmentBtn').disabled = true;
+        }
+
+        function updateLineDifference(row) {
+            const item = findPayItem(row.querySelector('.line-pay-item').value);
+            const differenceCell = row.querySelector('.line-difference');
+            if (!item) {
+                differenceCell.textContent = '-';
+                return;
+            }
+            const corrected = Number(row.querySelector('.line-amount').value || 0);
+            const diff = corrected - Number(item.currentAmount || 0);
+            differenceCell.textContent = formatMoney(diff);
+            differenceCell.className = `px-3 py-3 align-top text-right line-difference font-semibold ${amountClass(diff)}`;
+            latestPreview = null;
+            document.getElementById('createAmendmentBtn').disabled = true;
+        }
+
+        function updatePayItemOptionAvailability() {
+            const selected = Array.from(document.querySelectorAll('.line-pay-item'))
+                .map(select => select.value)
+                .filter(Boolean);
+            document.querySelectorAll('.line-pay-item').forEach(select => {
+                Array.from(select.options).forEach(option => {
+                    option.disabled = option.value && option.value !== select.value && selected.includes(option.value);
+                });
+            });
+        }
+
+        function findPayItem(code) {
+            return adjustablePayItems.find(item => item.componentCode === code);
         }
 
         async function previewAdjustment() {

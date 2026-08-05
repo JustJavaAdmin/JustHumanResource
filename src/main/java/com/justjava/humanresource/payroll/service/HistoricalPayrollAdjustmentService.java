@@ -1,6 +1,7 @@
 package com.justjava.humanresource.payroll.service;
 
 import com.justjava.humanresource.payroll.dto.HistoricalPayrollAdjustmentCommand;
+import com.justjava.humanresource.payroll.dto.HistoricalPayrollPayItemDTO;
 import com.justjava.humanresource.payroll.dto.PayrollOriginalVsAdjustedDTO;
 import com.justjava.humanresource.payroll.dto.PayrollVersionHistoryDTO;
 
@@ -10,6 +11,8 @@ import java.util.List;
 public interface HistoricalPayrollAdjustmentService {
 
     PayrollOriginalVsAdjustedDTO previewAdjustment(HistoricalPayrollAdjustmentCommand command);
+
+    List<HistoricalPayrollPayItemDTO> getAdjustablePayItems(Long employeeId, Long periodId);
 
     PayrollVersionHistoryDTO createPostedAmendment(HistoricalPayrollAdjustmentCommand command);
 

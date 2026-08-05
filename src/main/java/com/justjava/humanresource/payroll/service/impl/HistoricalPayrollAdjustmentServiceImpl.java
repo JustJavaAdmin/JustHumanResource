@@ -6,6 +6,7 @@ import com.justjava.humanresource.hr.entity.Employee;
 import com.justjava.humanresource.hr.repository.EmployeeRepository;
 import com.justjava.humanresource.payroll.dto.HistoricalPayrollAdjustmentCommand;
 import com.justjava.humanresource.payroll.dto.HistoricalPayrollAdjustmentLineCommand;
+import com.justjava.humanresource.payroll.dto.HistoricalPayrollPayItemDTO;
 import com.justjava.humanresource.payroll.dto.PayrollLineItemDifferenceDTO;
 import com.justjava.humanresource.payroll.dto.PayrollOriginalVsAdjustedDTO;
 import com.justjava.humanresource.payroll.dto.PayrollVersionHistoryDTO;
@@ -34,6 +35,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.HashSet;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -57,6 +60,23 @@ public class HistoricalPayrollAdjustmentServiceImpl implements HistoricalPayroll
         PayrollRun proposed = buildVirtualRun(latest, proposedLines, latest.getVersionNumber() + 1, reason);
 
         return compareRuns(latest, proposed, proposedLines);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<HistoricalPayrollPayItemDTO> getAdjustablePayItems(Long employeeId, Long periodId) {
+        PayrollPeriod period = payrollPeriodRepository.findById(periodId)
+                .orElseThrow(() -> new ResourceNotFoundException("PayrollPeriod", periodId));
+        Employee employee = validateEmployeeInCompany(employeeId, period.getCompanyId());
+        PayrollRun latest = getLatestPostedRun(employee.getId(), period);
+
+        return payrollLineItemRepository.findByPayrollRunId(latest.getId())
+                .stream()
+                .sorted(Comparator
+                        .comparing(PayrollLineItem::getComponentType)
+                        .thenComparing(PayrollLineItem::getComponentCode))
+                .map(this::mapPayItem)
+                .toList();
     }
 
     @Override
@@ -215,36 +235,38 @@ public class HistoricalPayrollAdjustmentServiceImpl implements HistoricalPayroll
             linesByCode.put(existing.getComponentCode(), cloneDetachedLine(existing));
         }
 
+        Set<String> seenCodes = new HashSet<>();
         for (HistoricalPayrollAdjustmentLineCommand change : command.getLines()) {
             PayrollLineItem line = linesByCode.get(change.getComponentCode());
             if (line == null) {
-                line = new PayrollLineItem();
-                line.setEmployee(baseRun.getEmployee());
-                line.setComponentCode(change.getComponentCode());
-                line.setDescription(change.getDescription() != null ? change.getDescription() : change.getComponentCode());
-                line.setComponentType(change.getComponentType());
-                line.setTaxable(Boolean.TRUE.equals(change.getTaxable()));
-                line.setPensionable(Boolean.TRUE.equals(change.getPensionable()));
-                line.setTaxRelief(Boolean.TRUE.equals(change.getTaxRelief()));
-                line.setPartOfGross(Boolean.TRUE.equals(change.getPartOfGross()));
-                line.setOutOfPayroll(Boolean.TRUE.equals(change.getOutOfPayroll()));
+                throw new IllegalStateException("Component " + change.getComponentCode()
+                        + " does not exist in the selected payroll version.");
+            }
+            if (!seenCodes.add(change.getComponentCode())) {
+                throw new IllegalStateException("Component " + change.getComponentCode()
+                        + " was selected more than once.");
             }
 
             line.setAmount(requireNonNegative(change.getCorrectedAmount(), change.getComponentCode()));
-            line.setComponentType(change.getComponentType());
-            if (change.getDescription() != null && !change.getDescription().isBlank()) {
-                line.setDescription(change.getDescription().trim());
-            }
-            if (change.getTaxable() != null) line.setTaxable(change.getTaxable());
-            if (change.getPensionable() != null) line.setPensionable(change.getPensionable());
-            if (change.getTaxRelief() != null) line.setTaxRelief(change.getTaxRelief());
-            if (change.getPartOfGross() != null) line.setPartOfGross(change.getPartOfGross());
-            if (change.getOutOfPayroll() != null) line.setOutOfPayroll(change.getOutOfPayroll());
 
             linesByCode.put(line.getComponentCode(), line);
         }
 
         return new ArrayList<>(linesByCode.values());
+    }
+
+    private HistoricalPayrollPayItemDTO mapPayItem(PayrollLineItem line) {
+        return HistoricalPayrollPayItemDTO.builder()
+                .componentCode(line.getComponentCode())
+                .description(line.getDescription())
+                .componentType(line.getComponentType())
+                .currentAmount(line.getAmount())
+                .taxable(line.isTaxable())
+                .pensionable(line.isPensionable())
+                .taxRelief(line.isTaxRelief())
+                .partOfGross(line.isPartOfGross())
+                .outOfPayroll(line.isOutOfPayroll())
+                .build();
     }
 
     private BigDecimal requireNonNegative(BigDecimal amount, String componentCode) {

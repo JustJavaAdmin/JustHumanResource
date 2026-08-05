@@ -8,6 +8,7 @@ import com.justjava.humanresource.hr.repository.EmployeeRepository;
 import com.justjava.humanresource.orgStructure.entity.Company;
 import com.justjava.humanresource.payroll.dto.HistoricalPayrollAdjustmentCommand;
 import com.justjava.humanresource.payroll.dto.HistoricalPayrollAdjustmentLineCommand;
+import com.justjava.humanresource.payroll.dto.HistoricalPayrollPayItemDTO;
 import com.justjava.humanresource.payroll.dto.PayrollOriginalVsAdjustedDTO;
 import com.justjava.humanresource.payroll.dto.PayrollVersionHistoryDTO;
 import com.justjava.humanresource.payroll.entity.PaySlip;
@@ -110,6 +111,19 @@ class HistoricalPayrollAdjustmentServiceImplTest {
         assertEquals(new BigDecimal("1100.00"), amendment.getNetPay());
         assertEquals(new BigDecimal("1000.00"), original.getGrossPay());
 
+        ArgumentCaptor<PayrollLineItem> lineCaptor = ArgumentCaptor.forClass(PayrollLineItem.class);
+        verify(payrollLineItemRepository, org.mockito.Mockito.times(2)).save(lineCaptor.capture());
+        PayrollLineItem adjustedBasic = lineCaptor.getAllValues().stream()
+                .filter(line -> "BASIC".equals(line.getComponentCode()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(new BigDecimal("1200.00"), adjustedBasic.getAmount());
+        assertEquals("Basic Salary", adjustedBasic.getDescription());
+        assertEquals(PayComponentType.EARNING, adjustedBasic.getComponentType());
+        assertEquals(true, adjustedBasic.isTaxable());
+        assertEquals(true, adjustedBasic.isPensionable());
+        assertEquals(true, adjustedBasic.isPartOfGross());
+
         ArgumentCaptor<PaySlip> slipCaptor = ArgumentCaptor.forClass(PaySlip.class);
         verify(paySlipRepository).save(slipCaptor.capture());
         assertEquals(2, slipCaptor.getValue().getVersionNumber());
@@ -162,6 +176,50 @@ class HistoricalPayrollAdjustmentServiceImplTest {
         assertEquals(new BigDecimal("200.00"), result.getNetDifference());
         assertEquals(1, result.getLineDifferences().size());
         assertEquals(new BigDecimal("200.00"), result.getLineDifferences().get(0).getDifferenceAmount());
+    }
+
+    @Test
+    void getAdjustablePayItemsReturnsLatestRunLineMetadata() {
+        PayrollPeriod period = closedPeriod();
+        Employee employee = employee();
+        PayrollRun original = postedRun(10L, employee, 1, PayrollRunType.ORIGINAL);
+
+        when(payrollPeriodRepository.findById(20L)).thenReturn(Optional.of(period));
+        when(employeeRepository.findById(5L)).thenReturn(Optional.of(employee));
+        when(payrollRunRepository.findLatestPostedRunForEmployeeAndPeriod(5L, period.getPeriodStart(), period.getPeriodEnd()))
+                .thenReturn(Optional.of(original));
+        when(payrollLineItemRepository.findByPayrollRunId(10L)).thenReturn(List.of(
+                line(original, employee, "BASIC", "Basic Salary", "1000.00", PayComponentType.EARNING, true)
+        ));
+
+        List<HistoricalPayrollPayItemDTO> items = service.getAdjustablePayItems(5L, 20L);
+
+        assertEquals(1, items.size());
+        assertEquals("BASIC", items.get(0).getComponentCode());
+        assertEquals(new BigDecimal("1000.00"), items.get(0).getCurrentAmount());
+        assertEquals(true, items.get(0).isTaxable());
+        assertEquals(true, items.get(0).isPensionable());
+        assertEquals(true, items.get(0).isPartOfGross());
+    }
+
+    @Test
+    void rejectsUnknownComponentCode() {
+        PayrollPeriod period = closedPeriod();
+        Employee employee = employee();
+        PayrollRun original = postedRun(10L, employee, 1, PayrollRunType.ORIGINAL);
+
+        when(payrollPeriodRepository.findById(20L)).thenReturn(Optional.of(period));
+        when(employeeRepository.findById(5L)).thenReturn(Optional.of(employee));
+        when(payrollRunRepository.findLatestPostedRunForEmployeeAndPeriod(5L, period.getPeriodStart(), period.getPeriodEnd()))
+                .thenReturn(Optional.of(original));
+        when(payrollLineItemRepository.findByPayrollRunId(10L)).thenReturn(List.of(
+                line(original, employee, "BASIC", "Basic Salary", "1000.00", PayComponentType.EARNING, true)
+        ));
+
+        HistoricalPayrollAdjustmentCommand command = command();
+        command.getLines().get(0).setComponentCode("UNKNOWN");
+
+        assertThrows(IllegalStateException.class, () -> service.createPostedAmendment(command));
     }
 
     private static HistoricalPayrollAdjustmentCommand command() {
