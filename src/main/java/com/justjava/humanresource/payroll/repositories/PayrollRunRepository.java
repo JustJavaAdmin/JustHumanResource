@@ -859,6 +859,50 @@ AND pr.versionNumber = (
             @Param("periodEnd")    LocalDate periodEnd
     );
 
+    @Query("""
+    SELECT pr FROM PayrollRun pr
+    WHERE pr.employee.id = :employeeId
+      AND pr.periodStart = :periodStart
+      AND pr.periodEnd = :periodEnd
+      AND pr.status = com.justjava.humanresource.core.enums.PayrollRunStatus.POSTED
+    ORDER BY pr.versionNumber ASC
+    """)
+    List<PayrollRun> findPostedVersionsForEmployeeAndPeriod(
+            @Param("employeeId") Long employeeId,
+            @Param("periodStart") LocalDate periodStart,
+            @Param("periodEnd") LocalDate periodEnd
+    );
+
+    @Query("""
+    SELECT pr FROM PayrollRun pr
+    WHERE pr.employee.id = :employeeId
+      AND pr.periodStart = :periodStart
+      AND pr.periodEnd = :periodEnd
+      AND pr.status = com.justjava.humanresource.core.enums.PayrollRunStatus.POSTED
+      AND pr.versionNumber = 1
+    """)
+    Optional<PayrollRun> findOriginalPostedRunForEmployeeAndPeriod(
+            @Param("employeeId") Long employeeId,
+            @Param("periodStart") LocalDate periodStart,
+            @Param("periodEnd") LocalDate periodEnd
+    );
+
+    @Query("""
+    SELECT pr
+    FROM PayrollRun pr
+    JOIN pr.employee e
+    WHERE e.department.company.id = :companyId
+      AND pr.periodStart = :periodStart
+      AND pr.periodEnd = :periodEnd
+      AND pr.status = com.justjava.humanresource.core.enums.PayrollRunStatus.POSTED
+      AND pr.versionNumber = 1
+    """)
+    List<PayrollRun> findOriginalPostedRunsForCompanyAndPeriod(
+            @Param("companyId") Long companyId,
+            @Param("periodStart") LocalDate periodStart,
+            @Param("periodEnd") LocalDate periodEnd
+    );
+
     /* ============================================================
        EMPLOYEE REPORT
        ============================================================ */

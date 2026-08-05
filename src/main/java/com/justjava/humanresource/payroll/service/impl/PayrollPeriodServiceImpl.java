@@ -334,6 +334,14 @@ public class PayrollPeriodServiceImpl implements PayrollPeriodService {
 
         return current;
     }
+
+    @Override
+    public List<PayrollPeriod> getClosedPeriods(Long companyId) {
+        return payrollPeriodRepository.findByCompanyIdOrderByPeriodStartDesc(companyId)
+                .stream()
+                .filter(period -> period.getStatus() == PayrollPeriodStatus.CLOSED)
+                .toList();
+    }
     /* ============================================================
        FLOWABLE APPROVAL
        ============================================================ */

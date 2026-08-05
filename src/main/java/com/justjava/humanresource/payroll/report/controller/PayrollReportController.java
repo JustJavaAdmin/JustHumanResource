@@ -2,6 +2,9 @@ package com.justjava.humanresource.payroll.report.controller;
 
 import com.justjava.humanresource.payroll.report.dto.PayrollVarianceDTO;
 import com.justjava.humanresource.payroll.report.services.PayrollVarianceService;
+import com.justjava.humanresource.payroll.dto.PayrollOriginalVsAdjustedDTO;
+import com.justjava.humanresource.payroll.dto.PayrollVersionHistoryDTO;
+import com.justjava.humanresource.payroll.service.HistoricalPayrollAdjustmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +27,7 @@ import java.util.List;
 public class PayrollReportController {
 
     private final PayrollVarianceService varianceService;
+    private final HistoricalPayrollAdjustmentService historicalPayrollAdjustmentService;
 
     /**
      * Payroll Variance Report.
@@ -69,5 +73,54 @@ public class PayrollReportController {
         );
 
         return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/version-history")
+    public ResponseEntity<List<PayrollVersionHistoryDTO>> getVersionHistory(
+            @RequestParam Long employeeId,
+            @RequestParam Long periodId) {
+        return ResponseEntity.ok(
+                historicalPayrollAdjustmentService.getVersionHistory(employeeId, periodId)
+        );
+    }
+
+    @GetMapping("/original-vs-adjusted")
+    public ResponseEntity<PayrollOriginalVsAdjustedDTO> compareOriginalToLatest(
+            @RequestParam Long employeeId,
+            @RequestParam Long periodId) {
+        return ResponseEntity.ok(
+                historicalPayrollAdjustmentService.compareOriginalToLatest(employeeId, periodId)
+        );
+    }
+
+    @GetMapping("/original-vs-adjusted/period")
+    public ResponseEntity<List<PayrollOriginalVsAdjustedDTO>> compareOriginalToLatestForPeriod(
+            @RequestParam Long companyId,
+            @RequestParam Long periodId) {
+        return ResponseEntity.ok(
+                historicalPayrollAdjustmentService.compareOriginalToLatestForPeriod(companyId, periodId)
+        );
+    }
+
+    @GetMapping("/version-comparison")
+    public ResponseEntity<PayrollOriginalVsAdjustedDTO> compareVersions(
+            @RequestParam Long employeeId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodStart,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodEnd,
+            @RequestParam Integer originalVersion,
+            @RequestParam Integer adjustedVersion) {
+        if (periodEnd.isBefore(periodStart)) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        return ResponseEntity.ok(
+                historicalPayrollAdjustmentService.compareVersions(
+                        employeeId,
+                        periodStart,
+                        periodEnd,
+                        originalVersion,
+                        adjustedVersion
+                )
+        );
     }
 }
