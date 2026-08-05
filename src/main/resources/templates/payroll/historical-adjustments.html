@@ -36,6 +36,15 @@
 <body>
 <main layout:fragment="content">
     <div class="space-y-6">
+        <div class="flex items-center gap-2 text-sm text-slate-500">
+            <a th:href="@{/payroll}" class="hover:text-primary transition-colors flex items-center gap-1">
+                <span class="material-icons-round">arrow_back</span>
+                Back to Payroll
+            </a>
+            <span class="mx-2">/</span>
+            <span class="font-medium text-slate-900 dark:text-white">Historical Adjustments</span>
+        </div>
+
         <section class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -79,8 +88,8 @@
         <div id="pageAlert" class="hidden rounded-lg border px-4 py-3 text-sm"></div>
 
         <section id="createPanel" class="adjustment-panel active">
-            <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <div class="xl:col-span-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+            <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                <div class="xl:col-span-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
                     <div class="flex items-center justify-between gap-4 mb-5">
                         <div>
                             <h4 class="font-bold text-gray-900 dark:text-white">Create Versioned Amendment</h4>
@@ -100,8 +109,8 @@
                                     <option value="">Select employee</option>
                                     <option th:each="employee : ${employees}"
                                             th:value="${employee.id}"
-                                            th:text="${employee.employeeNumber + ' - ' + employee.fullName}">
-                                        EMP001 - Employee Name
+                                            th:text="${employee.fullName + ' - ' + employee.employeeNumber}">
+                                        Employee Name - EMP001
                                     </option>
                                 </select>
                             </label>
@@ -123,16 +132,22 @@
                             <textarea id="reason" rows="3" class="form-input" required placeholder="Reason required for audit trail"></textarea>
                         </label>
 
-                        <div class="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-                            <table class="min-w-full text-sm">
+                        <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                            <table class="w-full table-fixed text-sm">
+                                <colgroup>
+                                    <col class="w-[25%]">
+                                    <col class="w-[30%]">
+                                    <col class="w-[17%]">
+                                    <col class="w-[18%]">
+                                    <col class="w-[10%]">
+                                </colgroup>
                                 <thead class="bg-gray-50 dark:bg-gray-900/60 text-gray-600 dark:text-gray-300">
                                 <tr>
-                                    <th class="text-left px-3 py-3 font-semibold">Pay Item</th>
-                                    <th class="text-right px-3 py-3 font-semibold">Corrected Amount</th>
-                                    <th class="text-right px-3 py-3 font-semibold">Original</th>
-                                    <th class="text-right px-3 py-3 font-semibold">Difference</th>
-                                    <th class="text-left px-3 py-3 font-semibold">Rules</th>
-                                    <th class="w-12 px-3 py-3"></th>
+                                    <th class="text-left px-2 py-3 font-semibold">Pay Item</th>
+                                    <th class="text-right px-2 py-3 font-semibold">Corrected Amount</th>
+                                    <th class="text-right px-2 py-3 font-semibold">Original</th>
+                                    <th class="text-right px-2 py-3 font-semibold">Difference</th>
+                                    <th class="px-2 py-3"></th>
                                 </tr>
                                 </thead>
                                 <tbody id="adjustmentLines" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
@@ -169,7 +184,7 @@
                         <span class="block text-sm font-medium mb-2">Employee</span>
                         <select id="historyEmployeeId" class="form-input">
                             <option value="">Select employee</option>
-                            <option th:each="employee : ${employees}" th:value="${employee.id}" th:text="${employee.employeeNumber + ' - ' + employee.fullName}"></option>
+                            <option th:each="employee : ${employees}" th:value="${employee.id}" th:text="${employee.fullName + ' - ' + employee.employeeNumber}"></option>
                         </select>
                     </label>
                     <label class="block flex-1">
@@ -195,7 +210,7 @@
                         <span class="block text-sm font-medium mb-2">Employee</span>
                         <select id="compareEmployeeId" class="form-input">
                             <option value="">Select employee</option>
-                            <option th:each="employee : ${employees}" th:value="${employee.id}" th:text="${employee.employeeNumber + ' - ' + employee.fullName}"></option>
+                            <option th:each="employee : ${employees}" th:value="${employee.id}" th:text="${employee.fullName + ' - ' + employee.employeeNumber}"></option>
                         </select>
                     </label>
                     <label class="block flex-1">
@@ -221,7 +236,7 @@
                         <span class="block text-sm font-medium mb-2">Employee</span>
                         <select id="linesEmployeeId" class="form-input">
                             <option value="">Select employee</option>
-                            <option th:each="employee : ${employees}" th:value="${employee.id}" th:text="${employee.employeeNumber + ' - ' + employee.fullName}"></option>
+                            <option th:each="employee : ${employees}" th:value="${employee.id}" th:text="${employee.fullName + ' - ' + employee.employeeNumber}"></option>
                         </select>
                     </label>
                     <label class="block flex-1">
@@ -303,21 +318,18 @@
             const row = document.createElement('tr');
             row.dataset.lineIndex = String(lineIndex++);
             row.innerHTML = `
-                <td class="px-3 py-3 align-top min-w-80">
+                <td class="px-2 py-3 align-top">
                     <select class="line-pay-item form-input text-sm py-2" onchange="handlePayItemChange(this)" required>
                         <option value="">Select pay item</option>
                     </select>
-                    <p class="line-description text-xs text-gray-500 mt-1"></p>
+                    <p class="line-description text-xs text-gray-500 mt-1 truncate"></p>
                 </td>
-                <td class="px-3 py-3 align-top">
+                <td class="px-2 py-3 align-top">
                     <input class="line-amount form-input text-sm py-2 text-right" type="number" min="0" step="0.01" placeholder="0.00" oninput="updateLineDifference(this.closest('tr'))" required>
                 </td>
-                <td class="px-3 py-3 align-top text-right line-original text-gray-600 dark:text-gray-300">-</td>
-                <td class="px-3 py-3 align-top text-right line-difference font-semibold">-</td>
-                <td class="px-3 py-3 align-top line-rules min-w-52">
-                    <span class="text-gray-400 text-sm">Select item</span>
-                </td>
-                <td class="px-3 py-3 align-top text-right">
+                <td class="px-2 py-3 align-top text-right line-original text-gray-600 dark:text-gray-300">-</td>
+                <td class="px-2 py-3 align-top text-right line-difference font-semibold">-</td>
+                <td class="px-2 py-3 align-top text-right">
                     <button type="button" onclick="removeAdjustmentLine(this)" class="p-2 text-gray-500 hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20" title="Remove line">
                         <span class="material-icons-round text-base">delete</span>
                     </button>
@@ -424,13 +436,11 @@
             const amountInput = row.querySelector('.line-amount');
             const description = row.querySelector('.line-description');
             const original = row.querySelector('.line-original');
-            const rules = row.querySelector('.line-rules');
 
             if (!item) {
                 amountInput.value = '';
                 description.textContent = '';
                 original.textContent = '-';
-                rules.innerHTML = '<span class="text-gray-400 text-sm">Select item</span>';
                 row.querySelector('.line-difference').textContent = '-';
                 return;
             }
@@ -440,12 +450,6 @@
             if (!amountInput.value) {
                 amountInput.value = Number(item.currentAmount || 0).toFixed(2);
             }
-            rules.innerHTML = renderFlags({
-                taxable: item.taxable,
-                pensionable: item.pensionable,
-                partOfGross: item.partOfGross,
-                outOfPayroll: item.outOfPayroll
-            });
             updateLineDifference(row);
             if (shouldRefresh) {
                 updatePayItemOptionAvailability();
@@ -464,7 +468,7 @@
             const corrected = Number(row.querySelector('.line-amount').value || 0);
             const diff = corrected - Number(item.currentAmount || 0);
             differenceCell.textContent = formatMoney(diff);
-            differenceCell.className = `px-3 py-3 align-top text-right line-difference font-semibold ${amountClass(diff)}`;
+            differenceCell.className = `px-2 py-3 align-top text-right line-difference font-semibold ${amountClass(diff)}`;
             latestPreview = null;
             document.getElementById('createAmendmentBtn').disabled = true;
         }
