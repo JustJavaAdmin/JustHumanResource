@@ -891,16 +891,6 @@
                         <span style="font-weight:600;">Total Deductions</span>
                         <span>-₦<span th:text="${#numbers.formatDecimal(ps.totalDeductions, 0, 'COMMA', 2, 'POINT')}">0.00</span></span>
                     </div>
-                    <!-- Special Payments (non-gross earnings) -->
-                    <div th:if="${ps.nonGrossEarnings != null and ps.nonGrossEarnings.compareTo(0) != 0}"
-                         style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;padding:0.5rem 0.75rem;border-radius:6px;background:#f0fdf4;border:1px solid #bbf7d0;">
-                        <span style="display:flex;align-items:center;gap:6px;font-size:0.875rem;font-weight:600;color:#166534;">
-                            <i class="bi bi-gift" style="font-size:0.85rem;"></i> Special Payments
-                        </span>
-                        <span style="font-size:0.875rem;font-weight:700;color:#166534;">
-                            +₦<span th:text="${#numbers.formatDecimal(ps.nonGrossEarnings, 0, 'COMMA', 2, 'POINT')}">0.00</span>
-                        </span>
-                    </div>
                     <div style="display:flex;justify-content:space-between;font-size:1rem;font-weight:700;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid #e6e9ef;">
                         <span>Net Pay</span>
                         <span style="color:#1d4ed8;">₦<span th:text="${#numbers.formatDecimal(ps.netPay, 0, 'COMMA', 2, 'POINT')}">0.00</span></span>
@@ -1031,16 +1021,6 @@
                             <div style="display:flex;justify-content:space-between;font-size:0.875rem;margin-bottom:4px;">
                                 <span style="font-weight:600;">Total Deductions</span>
                                 <span>-₦<span th:text="${#numbers.formatDecimal(paySlip.totalDeductions, 0, 'COMMA', 2, 'POINT')}">0.00</span></span>
-                            </div>
-                            <!-- Special Payments (non-gross earnings) -->
-                            <div th:if="${paySlip.nonGrossEarnings != null and paySlip.nonGrossEarnings.compareTo(0) != 0}"
-                                 style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;padding:0.5rem 0.75rem;border-radius:6px;background:#f0fdf4;border:1px solid #bbf7d0;">
-                        <span style="display:flex;align-items:center;gap:6px;font-size:0.875rem;font-weight:600;color:#166534;">
-                            <i class="bi bi-gift" style="font-size:0.85rem;"></i> Special Payments
-                        </span>
-                                <span style="font-size:0.875rem;font-weight:700;color:#166534;">
-                            +₦<span th:text="${#numbers.formatDecimal(paySlip.nonGrossEarnings, 0, 'COMMA', 2, 'POINT')}">0.00</span>
-                        </span>
                             </div>
                             <div style="display:flex;justify-content:space-between;font-size:1rem;font-weight:700;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid #e6e9ef;">
                                 <span>Net Pay</span>

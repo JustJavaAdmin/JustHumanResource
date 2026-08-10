@@ -2,22 +2,21 @@ package com.justjava.humanresource.taxBand;
 
 import com.justjava.humanresource.payroll.service.PayrollSetupService;
 import com.justjava.humanresource.payroll.statutory.entity.PayeTaxBand;
+import com.justjava.humanresource.payroll.statutory.service.TaxBandUploadService;
+import com.justjava.humanresource.payroll.statutory.service.impl.TaxBandUploadServiceImpl.TaxBandUploadValidationException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import com.justjava.humanresource.payroll.statutory.service.TaxBandUploadService;
-import com.justjava.humanresource.payroll.statutory.service.impl.TaxBandUploadServiceImpl.TaxBandUploadValidationException;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -116,14 +115,22 @@ public class TaxBandController {
 
     @PostMapping("/tax-band/upload-csv")
     @ResponseBody
-    public ResponseEntity<?> uploadTaxBandCsv(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> uploadTaxBandCsv(@RequestParam("file") MultipartFile file,
+                                              @RequestParam(value = "effectiveFrom", required = false)
+                                              @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                                              LocalDate effectiveFrom,
+                                              @RequestParam(value = "effectiveTo", required = false)
+                                              @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                                              LocalDate effectiveTo) {
         try {
-            TaxBandUploadService.UploadSummary summary = taxBandUploadService.uploadTaxBands(file);
+            TaxBandUploadService.UploadSummary summary = taxBandUploadService.uploadTaxBands(file, effectiveFrom, effectiveTo);
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("message", "Tax bands uploaded successfully");
             body.put("totalRows", summary.totalRows());
             body.put("successRows", summary.successRows());
             body.put("regimeCode", summary.regimeCode());
+            body.put("effectiveFrom", effectiveFrom);
+            body.put("effectiveTo", effectiveTo);
             return ResponseEntity.ok(body);
         } catch (TaxBandUploadValidationException ex) {
             Map<String, Object> body = new LinkedHashMap<>();

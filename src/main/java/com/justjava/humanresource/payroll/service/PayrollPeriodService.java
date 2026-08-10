@@ -4,6 +4,7 @@ import com.justjava.humanresource.payroll.entity.PayrollPeriod;
 import com.justjava.humanresource.payroll.enums.PayrollPeriodStatus;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public interface PayrollPeriodService {
 
@@ -96,4 +97,5 @@ public interface PayrollPeriodService {
 
     PayrollPeriod findById(Long id);
     public PayrollPeriod getCurrentPeriod(Long companyId);
+    List<PayrollPeriod> getClosedPeriods(Long companyId);
 }

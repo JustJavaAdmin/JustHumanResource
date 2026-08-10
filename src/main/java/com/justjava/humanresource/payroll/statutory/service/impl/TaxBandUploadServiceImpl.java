@@ -25,17 +25,25 @@ public class TaxBandUploadServiceImpl implements TaxBandUploadService {
 
     @Override
     @Transactional
-    public UploadSummary uploadTaxBands(MultipartFile file) {
+    public UploadSummary uploadTaxBands(MultipartFile file, LocalDate effectiveFrom, LocalDate effectiveTo) {
 
         List<TaxBandUploadRowDTO> rows = csvParserService.parse(file);
         List<RowError> errors = new ArrayList<>();
+
+        if (effectiveFrom == null) {
+            errors.add(new RowError(0, "Effective from is required"));
+        } else if (effectiveTo != null && effectiveTo.isBefore(effectiveFrom)) {
+            errors.add(new RowError(0, "Effective to cannot be before effective from"));
+        }
 
         if (rows.isEmpty()) {
             errors.add(new RowError(0, "CSV file contains no data rows"));
             throw new TaxBandUploadValidationException(0, errors);
         }
 
-        LocalDate effectiveFrom = LocalDate.now();
+        if (!errors.isEmpty()) {
+            throw new TaxBandUploadValidationException(rows.size(), errors);
+        }
 
         // ---- 1. Per-row field validation ----
         for (TaxBandUploadRowDTO row : rows) {
@@ -113,7 +121,7 @@ public class TaxBandUploadServiceImpl implements TaxBandUploadService {
             band.setUpperBound(row.getUpperBound());
             band.setRate(row.getRate());
             band.setEffectiveFrom(effectiveFrom);
-            band.setEffectiveTo(null);
+            band.setEffectiveTo(effectiveTo);
             band.setStatus(RecordStatus.ACTIVE);
             band.setRegimeCode(regimeCode);
             payeTaxBandRepository.save(band);

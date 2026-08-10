@@ -459,7 +459,6 @@ public class PaySlipServiceImpl implements PaySlipService {
                 .grossPay(paySlip.getGrossPay())
                 .totalDeductions(paySlip.getTotalDeductions())
                 .netPay(paySlip.getNetPay())
-                .nonGrossEarnings(run.getNonGrossEarnings()) // newly added
 
                 .allowances(allowances)
                 .deductions(deductions)

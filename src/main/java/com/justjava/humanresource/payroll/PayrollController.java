@@ -121,6 +121,15 @@ public class PayrollController {
         return "payroll/main";
     }
 
+    @GetMapping("/payroll/historical-adjustments")
+    public String getHistoricalPayrollAdjustments(Model model) {
+        model.addAttribute("employees", employeeOnboardingService.getAllOnboardings());
+        model.addAttribute("closedPeriods", payrollPeriodService.getClosedPeriods(1L));
+        model.addAttribute("title", "Historical Payroll Adjustments");
+        model.addAttribute("subTitle", "Create and review versioned corrections for closed payroll periods");
+        return "payroll/historical-adjustments";
+    }
+
     @GetMapping("/payroll/items")
     public String getPayrollItems(Model model) {
         List<Allowance> allowances = payrollSetupService.getActiveAllowances();
@@ -428,7 +437,6 @@ public class PayrollController {
                                 .grossPay(ps.getGrossPay())
                                 .totalDeductions(ps.getTotalDeductions())
                                 .netPay(ps.getNetPay())
-                                .nonGrossEarnings(ps.getNonGrossEarnings())
                                 .allowances(ps.getAllowances())
                                 .deductions(ps.getDeductions())
                                 .futureAllowances(futureAllowances)
