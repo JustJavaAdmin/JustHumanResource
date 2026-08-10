@@ -5,6 +5,7 @@ import com.justjava.humanresource.approval.dto.ApprovalPathResponse;
 import com.justjava.humanresource.approval.dto.RequestTypeApprovalRouteCommand;
 import com.justjava.humanresource.approval.service.CustomApprovalPathService;
 import com.justjava.humanresource.core.config.AuthenticationManager;
+import com.justjava.humanresource.core.enums.EmploymentStatus;
 import com.justjava.humanresource.core.enums.RecordStatus;
 import com.justjava.humanresource.hr.entity.Employee;
 import com.justjava.humanresource.hr.repository.EmployeeRepository;
@@ -73,7 +74,7 @@ public class ApprovalPathController {
     public List<RequestLookupOption> approvers() {
         requireHrAdmin();
         return employeeRepository.findAllVisible().stream()
-                .filter(e -> e.getStatus() == RecordStatus.ACTIVE)
+                .filter(this::isSelectableApprover)
                 .sorted(Comparator.comparing(Employee::getFullName, String.CASE_INSENSITIVE_ORDER))
                 .map(e -> new RequestLookupOption(e.getId(), e.getEmployeeNumber() + " - " + e.getFullName()))
                 .toList();
@@ -91,5 +92,10 @@ public class ApprovalPathController {
         if (!(auth.isHumanResource() || auth.isJobHR() || auth.isAdmin() || auth.isRestrictedHr())) {
             throw new IllegalStateException("HR or administrator access is required.");
         }
+    }
+
+    private boolean isSelectableApprover(Employee employee) {
+        return employee.getEmploymentStatus() == EmploymentStatus.ACTIVE
+                && employee.getStatus() != RecordStatus.SUSPENDED;
     }
 }

@@ -9,6 +9,7 @@ import com.justjava.humanresource.approval.enums.ApprovalRouteType;
 import com.justjava.humanresource.approval.repository.CustomApprovalPathRepository;
 import com.justjava.humanresource.approval.repository.CustomApprovalPathStepRepository;
 import com.justjava.humanresource.core.config.AuthenticationManager;
+import com.justjava.humanresource.core.enums.EmploymentStatus;
 import com.justjava.humanresource.core.enums.RecordStatus;
 import com.justjava.humanresource.hr.entity.Employee;
 import com.justjava.humanresource.hr.repository.EmployeeRepository;
@@ -157,7 +158,9 @@ public class CustomApprovalPathService {
             }
             Employee employee = employeeRepository.findById(employeeId)
                     .orElseThrow(() -> new IllegalArgumentException("Approver employee not found: " + employeeId));
-            if (employee.getStatus() != RecordStatus.ACTIVE || employee.isRestrictedVisibility()) {
+            if (employee.getEmploymentStatus() != EmploymentStatus.ACTIVE
+                    || employee.isRestrictedVisibility()
+                    || employee.getStatus() == RecordStatus.SUSPENDED) {
                 throw new IllegalArgumentException("Approver must be an active visible employee: " + employeeId);
             }
         }
