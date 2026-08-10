@@ -14,6 +14,8 @@ import com.justjava.humanresource.leave.enums.LeaveApprovalDecision;
 import com.justjava.humanresource.leave.enums.LeaveRequestStatus;
 import com.justjava.humanresource.leave.repository.LeaveApprovalStepRepository;
 import com.justjava.humanresource.leave.repository.LeaveRequestRepository;
+import com.justjava.humanresource.utils.AfterCommitExecutor;
+import com.justjava.humanresource.utils.LeaveEmailService;
 import com.justjava.humanresource.workflow.dto.FlowableTaskDTO;
 import com.justjava.humanresource.workflow.service.FlowableTaskService;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +42,8 @@ public class LeaveWorkflowService {
     private final ApprovalRouteResolverFactory routeResolverFactory;
     private final RuntimeService runtimeService;
     private final FlowableTaskService flowableTaskService;
+    private final LeaveEmailService leaveEmailService;
+    private final AfterCommitExecutor afterCommitExecutor;
 
     @Transactional
     public LeaveRequest submitLeaveRequest(LeaveRequestCreateCommand command) {
@@ -121,6 +125,13 @@ public class LeaveWorkflowService {
             LeaveRequest saved = leaveRequestRepository.save(request);
             log.info("Leave request submitted successfully. leaveRequestId={}, workflowInstanceId={}",
                     saved.getId(), saved.getWorkflowInstanceId());
+
+            Long firstApproverId = route.get(0).getEmployeeId();
+            afterCommitExecutor.runAfterCommit(() -> {
+                leaveEmailService.notifyLeaveSubmitted(saved);
+                leaveEmailService.notifyPendingApproval(saved, firstApproverId);
+            });
+
             return saved;
         } catch (Exception ex) {
             log.error(
