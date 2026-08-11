@@ -5,6 +5,8 @@ import com.justjava.humanresource.leave.entity.LeaveRequest;
 import com.justjava.humanresource.leave.enums.LeaveApprovalDecision;
 import com.justjava.humanresource.leave.repository.LeaveApprovalStepRepository;
 import com.justjava.humanresource.leave.repository.LeaveRequestRepository;
+import com.justjava.humanresource.utils.AfterCommitExecutor;
+import com.justjava.humanresource.utils.LeaveEmailService;
 import lombok.RequiredArgsConstructor;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.JavaDelegate;
@@ -19,6 +21,8 @@ public class ProcessLeaveApprovalDecisionDelegate implements JavaDelegate {
 
     private final LeaveRequestRepository leaveRequestRepository;
     private final LeaveApprovalStepRepository leaveApprovalStepRepository;
+    private final LeaveEmailService leaveEmailService;
+    private final AfterCommitExecutor afterCommitExecutor;
 
     @Override
     public void execute(DelegateExecution execution) {
@@ -78,6 +82,12 @@ public class ProcessLeaveApprovalDecisionDelegate implements JavaDelegate {
                         nextStep.setDecision(LeaveApprovalDecision.PENDING);
                         return leaveApprovalStepRepository.save(nextStep);
                     });
+
+            Long nextApproverId = Long.parseLong(approverIds.get(nextLevel));
+            LeaveRequest notificationRequest = request;
+            afterCommitExecutor.runAfterCommit(() ->
+                    leaveEmailService.notifyPendingApproval(notificationRequest, nextApproverId)
+            );
         }
     }
 }

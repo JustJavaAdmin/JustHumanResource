@@ -131,6 +131,9 @@ public class EmployeeServiceImpl implements EmployeeService {
     public EmployeeDTO changeEmploymentStatus(Long employeeId, EmploymentStatus newStatus, LocalDate effectiveDate) {
         Employee employee = getById(employeeId);
         employee.setEmploymentStatus(newStatus);
+        if (newStatus == EmploymentStatus.ACTIVE) {
+            employee.setStatus(RecordStatus.ACTIVE);
+        }
         Employee saved = employeeRepository.save(employee);
         payrollChangeOrchestrator.recalculateForEmployee(saved.getId(), effectiveDate);
         return employeeMapper.toDto(saved);

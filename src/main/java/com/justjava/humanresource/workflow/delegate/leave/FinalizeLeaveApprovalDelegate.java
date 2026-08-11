@@ -3,6 +3,8 @@ package com.justjava.humanresource.workflow.delegate.leave;
 import com.justjava.humanresource.leave.entity.LeaveRequest;
 import com.justjava.humanresource.leave.enums.LeaveRequestStatus;
 import com.justjava.humanresource.leave.repository.LeaveRequestRepository;
+import com.justjava.humanresource.utils.AfterCommitExecutor;
+import com.justjava.humanresource.utils.LeaveEmailService;
 import lombok.RequiredArgsConstructor;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.JavaDelegate;
@@ -13,6 +15,8 @@ import org.springframework.stereotype.Component;
 public class FinalizeLeaveApprovalDelegate implements JavaDelegate {
 
     private final LeaveRequestRepository leaveRequestRepository;
+    private final LeaveEmailService leaveEmailService;
+    private final AfterCommitExecutor afterCommitExecutor;
 
     @Override
     public void execute(DelegateExecution execution) {
@@ -21,5 +25,10 @@ public class FinalizeLeaveApprovalDelegate implements JavaDelegate {
                 .orElseThrow(() -> new IllegalStateException("Leave request not found: " + leaveRequestId));
         request.setStatus(LeaveRequestStatus.APPROVED);
         leaveRequestRepository.save(request);
+
+        LeaveRequest notificationRequest = request;
+        afterCommitExecutor.runAfterCommit(() ->
+                leaveEmailService.notifyLeaveApproved(notificationRequest)
+        );
     }
 }
