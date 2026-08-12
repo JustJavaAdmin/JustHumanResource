@@ -483,6 +483,11 @@ public class EmployeeController {
 
     @GetMapping("employee/leave")
     public String getLeave(Model model) {
+        String   email         = (String) authenticationManager.get("email");
+        Employee loginEmployee = employeeService.getByEmail(email);
+        Employee employee      = employeeService.getEmployeeWithBankDetails(loginEmployee.getId());
+
+        model.addAttribute("employee", employee);
         model.addAttribute("title",    "Leave Management");
         model.addAttribute("subTitle",
                 "View your leave balance, request time off, and track your leave history");
@@ -493,6 +498,7 @@ public class EmployeeController {
     public String getPerformance(Model model) {
         String   email         = (String) authenticationManager.get("email");
         Employee loginEmployee = employeeService.getByEmail(email);
+        Employee employee      = employeeService.getEmployeeWithBankDetails(loginEmployee.getId());
 
         List<HistoricProcessInstance> completedProcesses =
                 flowableTaskService.getCompletedProcessInstancesForAssignee("employeeAppraisalProcess");
@@ -519,6 +525,7 @@ public class EmployeeController {
         List<EmployeeAppraisal> employeeAppraisals =
                 appraisalService.findAppraisalByEmployeeID(loginEmployee.getId());
 
+        model.addAttribute("employee",          employee);
         model.addAttribute("tasks",              tasks);
         model.addAttribute("employeeAppraisals", employeeAppraisals);
         model.addAttribute("appraisalMap",

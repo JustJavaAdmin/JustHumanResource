@@ -359,22 +359,16 @@
 
             <!-- Initials Avatar -->
             <div class="w-10 h-10 rounded-full ring-2 ring-gray-200 dark:ring-gray-700 flex items-center justify-center bg-primary text-white font-semibold text-sm" style="background-color: rgb(37 99 235 / var(--tw-bg-opacity, 1));">
-        <span th:text="${#strings.substring(userName,0,1).toUpperCase() +
-                        (#strings.contains(userName,' ') ?
-                        #strings.substring(userName, userName.indexOf(' ') + 1, userName.indexOf(' ') + 2).toUpperCase()
-                        : '')}">
-            JO
-        </span>
+             <span th:text="${(employee?.firstName != null ? #strings.substring(employee.firstName, 0, 1).toUpperCase() : '') +
+                (employee?.lastName != null ? #strings.substring(employee.lastName, 0, 1).toUpperCase() : '')}">
+              JO
+             </span>
             </div>
 
             <div class="flex-1 min-w-0">
-                <p th:text="${userName}"
+                <p th:text="${employee.firstName + ' ' + employee.lastName}"
                    class="text-sm font-semibold text-gray-900 dark:text-white truncate">
                     Jane Okafor
-                </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400 truncate flex items-center">
-                    <span class="material-icons-round text-xs mr-1">work</span>
-                    Marketing Specialist · Grade 3
                 </p>
             </div>
 
