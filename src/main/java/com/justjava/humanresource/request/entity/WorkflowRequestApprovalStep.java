@@ -17,4 +17,8 @@ public class WorkflowRequestApprovalStep extends BaseEntity {
     @Column(length=2000) private String comments;
     private LocalDateTime decisionAt;
     @Column(length=100) private String flowableTaskId;
+
+    // Free Route forwarding metadata (Step 1)
+    private Long forwardedToEmployeeId;
+    private LocalDateTime forwardedAt;
 }

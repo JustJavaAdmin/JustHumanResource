@@ -725,11 +725,14 @@
         function renderTasks() {
             document.getElementById('taskRows').innerHTML = tasks.length ? tasks.map(t => {
                 const requestId = t.variables && t.variables.workflowRequestId ? t.variables.workflowRequestId : '';
+                const matchedRequest = requestId ? requests.find(r => Number(r.id) === Number(requestId)) : null;
+                const isFreeRoute = matchedRequest && matchedRequest.approvalRouteType === 'FREE_ROUTE';
                 return `<tr class="request-row">
-                    <td class="px-4 py-3">${requestId ? `<a class="text-primary-600 hover:underline" href="${pageBase}/${requestId}">Request #${requestId}</a>` : '-'}</td>
+                    <td class="px-4 py-3">${requestId ? `<a class="text-primary-600 hover:underline" href="${pageBase}/${requestId}">Request #${requestId}</a>` : '-'}${isFreeRoute ? ' <span class="request-badge request-badge-info">Free Route</span>' : ''}</td>
                     <td class="px-4 py-3">${t.taskName || t.taskDefinitionKey || ''}</td>
                     <td class="px-4 py-3">${(t.createdTime || '').replace('T', ' ')}</td>
                     <td class="px-4 py-3">
+                        ${requestId ? `<a href="${pageBase}/${requestId}" class="rounded border border-gray-300 px-3 py-1 text-xs text-gray-700 dark:border-gray-600 dark:text-gray-200">Open</a>` : ''}
                         <button onclick="openApprovalModal('${t.taskId}','approve')" class="rounded bg-green-600 px-3 py-1 text-xs text-white">Approve</button>
                         <button onclick="openApprovalModal('${t.taskId}','reject')" class="rounded bg-red-600 px-3 py-1 text-xs text-white">Reject</button>
                         <button onclick="openApprovalModal('${t.taskId}','return')" class="rounded bg-orange-600 px-3 py-1 text-xs text-white">Return</button>

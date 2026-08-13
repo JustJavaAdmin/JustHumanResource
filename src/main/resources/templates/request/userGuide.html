@@ -59,6 +59,7 @@
                     <a class="guide-link" href="#create"><span class="material-icons-round text-sm">add_circle</span> Create Request</a>
                     <a class="guide-link" href="#details"><span class="material-icons-round text-sm">article</span> Request Detail</a>
                     <a class="guide-link" href="#approval"><span class="material-icons-round text-sm">task_alt</span> Approval Flow</a>
+                    <a class="guide-link" href="#free-route"><span class="material-icons-round text-sm">alt_route</span> Free Route</a>
                     <a class="guide-link" href="#files-items"><span class="material-icons-round text-sm">attach_file</span> Files & Items</a>
                     <a class="guide-link" href="#statuses"><span class="material-icons-round text-sm">flag</span> Statuses</a>
                     <a class="guide-link" href="#troubleshooting"><span class="material-icons-round text-sm">help</span> Troubleshooting</a>
@@ -286,8 +287,40 @@
                 </div>
             </section>
 
+            <section id="free-route" class="guide-card p-5">
+                <h2 class="text-xl font-bold">8. Free Route</h2>
+                <p class="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                    Free Route is an alternative approval path chosen on an individual request, rather than the line-manager or
+                    HR-configured custom route. It is started by the requester from the request detail page, not configured by
+                    HR in request-type setup.
+                </p>
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                        <h3 class="font-semibold">Submit</h3>
+                        <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Follows the requester's configured approval route (line-manager chain, or the HR-configured custom path for that request type). Behavior is unchanged from before Free Route existed.</p>
+                    </div>
+                    <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                        <h3 class="font-semibold">Send To</h3>
+                        <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Sends the request directly to one selected employee instead of the configured route. Available on the request detail page while the request is draft or returned for correction.</p>
+                    </div>
+                </div>
+                <ul class="mt-4 list-disc space-y-2 pl-5 text-sm text-gray-600 dark:text-gray-300">
+                    <li>The receiving employee sees the request under their pending approval tasks and can <strong>Approve</strong>, <strong>Reject</strong>, <strong>Return</strong>, or <strong>Forward</strong> it.</li>
+                    <li><strong>Forward</strong> is only shown for Free Route requests. Requests on the normal line-manager/custom route cannot be forwarded.</li>
+                    <li>A Free Route request can be forwarded from employee to employee until someone approves, rejects, or returns it.</li>
+                    <li>Approve on a Free Route request is a final approval — it does not continue to any other configured route.</li>
+                    <li>Reject on a Free Route request is final and stops the workflow immediately.</li>
+                    <li>Return on a Free Route request sends it back to the original requester for correction, the same as a normal return.</li>
+                    <li>A returned Free Route request that is resubmitted normally with <strong>Submit</strong> follows the configured line-manager/custom route, not Free Route.</li>
+                    <li>The original requester and the current holder of the request cannot be selected as the next recipient.</li>
+                </ul>
+                <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100">
+                    Free Route bypasses both line-manager routing and HR custom routing for that specific request. It is not something HR/admin configures for a request type.
+                </div>
+            </section>
+
             <section id="files-items" class="guide-card p-5">
-                <h2 class="text-xl font-bold">8. Files And Items</h2>
+                <h2 class="text-xl font-bold">9. Files And Items</h2>
                 <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
                         <h3 class="font-semibold">Attachments</h3>
@@ -316,7 +349,7 @@
             </section>
 
             <section id="statuses" class="guide-card p-5">
-                <h2 class="text-xl font-bold">9. Status Guide</h2>
+                <h2 class="text-xl font-bold">10. Status Guide</h2>
                 <div class="mt-4 overflow-x-auto">
                     <table class="guide-table w-full text-sm">
                         <thead>
@@ -373,7 +406,7 @@
             </section>
 
             <section id="troubleshooting" class="guide-card p-5">
-                <h2 class="text-xl font-bold">10. Troubleshooting</h2>
+                <h2 class="text-xl font-bold">11. Troubleshooting</h2>
                 <div class="mt-4 space-y-4">
                     <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
                         <h3 class="font-semibold">I cannot create a request</h3>
@@ -403,7 +436,7 @@
             </section>
 
             <section class="guide-card p-5">
-                <h2 class="text-xl font-bold">11. Recommended Working Habits</h2>
+                <h2 class="text-xl font-bold">12. Recommended Working Habits</h2>
                 <ul class="mt-3 list-disc space-y-2 pl-5 text-sm text-gray-600 dark:text-gray-300">
                     <li>Use clear request titles so approvers can understand the request from the list page.</li>
                     <li>Attach supporting documents before submitting file-sensitive or approval-sensitive requests.</li>

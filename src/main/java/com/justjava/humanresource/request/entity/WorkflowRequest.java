@@ -1,5 +1,6 @@
 package com.justjava.humanresource.request.entity;
 
+import com.justjava.humanresource.approval.enums.ApprovalRouteType;
 import com.justjava.humanresource.core.entity.BaseEntity;
 import com.justjava.humanresource.request.enums.*;
 import jakarta.persistence.*;
@@ -26,4 +27,13 @@ public class WorkflowRequest extends BaseEntity {
     private LocalDateTime approvedAt;
     private LocalDateTime rejectedAt;
     private LocalDateTime closedAt;
+
+    // Free Route metadata (Step 1)
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private ApprovalRouteType approvalRouteType;
+
+    private Long freeRouteCurrentApproverEmployeeId;
+    private LocalDateTime freeRouteStartedAt;
+    private LocalDateTime freeRouteLastForwardedAt;
 }

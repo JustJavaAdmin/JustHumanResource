@@ -56,6 +56,7 @@
                     <a class="guide-link" href="#request-types"><span class="material-icons-round text-sm">category</span> Request Types</a>
                     <a class="guide-link" href="#create"><span class="material-icons-round text-sm">add_circle</span> Create Request</a>
                     <a class="guide-link" href="#approval"><span class="material-icons-round text-sm">task_alt</span> Approval Flow</a>
+                    <a class="guide-link" href="#free-route"><span class="material-icons-round text-sm">alt_route</span> Free Route</a>
                     <a class="guide-link" href="#statuses"><span class="material-icons-round text-sm">flag</span> Statuses</a>
                     <a class="guide-link" href="#troubleshooting"><span class="material-icons-round text-sm">help</span> Troubleshooting</a>
                 </nav>
@@ -134,8 +135,38 @@
                 </div>
             </section>
 
+            <section id="free-route" class="guide-card p-5">
+                <h2 class="text-xl font-bold">6. Free Route</h2>
+                <p class="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                    Free Route is a separate way to get a request approved. It sends the request to one specific
+                    employee you choose, instead of going through your normal approval route.
+                </p>
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                        <h3 class="font-semibold">Submit</h3>
+                        <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Follows your normal configured approval route (your manager chain or the HR-configured path for that request type).</p>
+                    </div>
+                    <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                        <h3 class="font-semibold">Send To</h3>
+                        <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Sends the request directly to one employee you select, instead of your normal approval route. Available from the request detail page while the request is a draft or returned for correction.</p>
+                    </div>
+                </div>
+                <ul class="mt-4 list-disc space-y-2 pl-5 text-sm text-gray-600 dark:text-gray-300">
+                    <li>The employee who receives the request can <strong>Approve</strong>, <strong>Reject</strong>, <strong>Return</strong>, or <strong>Forward</strong> it to someone else.</li>
+                    <li><strong>Forward</strong> is only available on Free Route requests — it is not shown for requests going through the normal approval route.</li>
+                    <li>Forwarding can continue from person to person until someone approves, rejects, or returns the request.</li>
+                    <li>Approving a Free Route request finalizes it as approved — it does not move on to any other approver.</li>
+                    <li>Rejecting a Free Route request stops it immediately.</li>
+                    <li>Returning a Free Route request sends it back to you, the original requester, for correction — the same as a normal return.</li>
+                    <li>You cannot select yourself or the current holder of the request as the next recipient.</li>
+                </ul>
+                <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100">
+                    Free Route is chosen by you on an individual request when you click <strong>Send To</strong> — it is not something HR/admin configures for a request type, and it does not follow your line-manager or HR-configured route.
+                </div>
+            </section>
+
             <section id="statuses" class="guide-card p-5">
-                <h2 class="text-xl font-bold">6. Status Guide</h2>
+                <h2 class="text-xl font-bold">7. Status Guide</h2>
                 <div class="mt-4 overflow-x-auto">
                     <table class="guide-table w-full text-sm">
                         <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
@@ -152,7 +183,7 @@
             </section>
 
             <section id="troubleshooting" class="guide-card p-5">
-                <h2 class="text-xl font-bold">7. Troubleshooting</h2>
+                <h2 class="text-xl font-bold">8. Troubleshooting</h2>
                 <div class="mt-4 space-y-4">
                     <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700"><h3 class="font-semibold">I cannot create a request</h3><p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Confirm your login email is linked to an employee record.</p></div>
                     <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700"><h3 class="font-semibold">No approval route is configured</h3><p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Ask HR/admin to check your primary reporting line.</p></div>

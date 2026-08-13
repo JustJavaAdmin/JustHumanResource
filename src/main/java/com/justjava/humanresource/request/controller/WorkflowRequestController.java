@@ -32,6 +32,9 @@ public class WorkflowRequestController {
  @PostMapping public ResponseEntity<WorkflowRequest> create(@Valid @RequestBody CreateWorkflowRequestCommand command){return ResponseEntity.status(HttpStatus.CREATED).body(service.createDraft(command));}
  @PostMapping("/submit") public ResponseEntity<WorkflowRequest> createAndSubmit(@Valid @RequestBody CreateWorkflowRequestCommand command){return ResponseEntity.status(HttpStatus.CREATED).body(service.createAndSubmit(command));}
  @PostMapping("/{id}/submit") public WorkflowRequest submit(@PathVariable Long id){return service.submit(id);}
+ @GetMapping("/free-route/recipients") public List<RequestLookupOption> freeRouteRecipients(@RequestParam(required=false) Long requestId){return service.freeRouteRecipients(requestId);}
+ @PostMapping("/{id}/free-route/send") public WorkflowRequest sendFreeRoute(@PathVariable Long id,@Valid @RequestBody FreeRouteSendCommand command){return service.sendFreeRoute(id,command.getToEmployeeId(),command.getComment());}
+ @PostMapping("/free-route/forward") public WorkflowRequest forwardFreeRoute(@Valid @RequestBody FreeRouteForwardCommand command){return service.forwardFreeRoute(command.getTaskId(),command.getToEmployeeId(),command.getComment());}
  @GetMapping("/me") public List<WorkflowRequest> mine(){return service.myRequests();}
  @GetMapping("/visible") public List<WorkflowRequest> visible(){return service.visibleRequests();}
  @GetMapping("/all") public List<WorkflowRequest> all(){return service.allRequests();}
