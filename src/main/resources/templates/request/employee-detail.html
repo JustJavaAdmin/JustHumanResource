@@ -430,12 +430,26 @@
             renderFreeRouteEvents();
         }
 
+        function escapeHtml(value) {
+            if (value == null) return '';
+            return String(value)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
         function renderFreeRouteEvents() {
             const container = document.getElementById('freeRouteEvents');
             const rows = detail.freeRouteEvents || [];
-            if (!rows.length) { container.innerHTML = ''; return; }
-            container.innerHTML = `<p class="font-semibold text-gray-500">Free Route Movement</p>` + rows.map(ev => `
-                <p class="text-gray-500">${fmt(ev.eventType)} from employee ${ev.fromEmployeeId} to employee ${ev.toEmployeeId}${ev.comment ? ` — ${text(ev.comment)}` : ''}</p>`).join('');
+            const sent = rows.find(ev => ev.eventType === 'SENT' && ev.comment && ev.comment.trim());
+            if (!sent) { container.innerHTML = ''; return; }
+            container.innerHTML = `
+                <div class="request-timeline-item">
+                    <p class="font-semibold text-gray-600 dark:text-gray-300">Requester comment</p>
+                    <p class="mt-1 text-gray-600 dark:text-gray-300">${escapeHtml(sent.comment)}</p>
+                </div>`;
         }
 
         function renderComments() {
@@ -465,7 +479,16 @@
             document.getElementById('primaryActions').innerHTML = actions.join('');
         }
 
-        async function submitRequest() { await mutate(`${api}/${requestId}/submit`, 'POST'); }
+        async function submitRequest() {
+            if (await showConfirmModal({
+                title: 'Submit Request',
+                message: 'Submit this request for the configured approval route?',
+                confirmLabel: 'Submit Request',
+                danger: false
+            })) {
+                await mutate(`${api}/${requestId}/submit`, 'POST');
+            }
+        }
         async function cancelRequest() {
             if (await showConfirmModal({title:'Cancel Request', message:'Are you sure you want to cancel this request? This cannot be undone.', confirmLabel:'Cancel Request'})) await mutate(`${api}/${requestId}/cancel`, 'POST');
         }
