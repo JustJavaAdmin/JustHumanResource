@@ -84,6 +84,7 @@
             <div class="request-card p-5">
                 <h2 class="flex items-center gap-2 text-base font-semibold"><span class="material-icons-round text-primary-600">timeline</span>Approval Timeline</h2>
                 <ol id="approvalSteps" class="mt-4 space-y-3 text-sm"></ol>
+                <div id="freeRouteEvents" class="mt-4 space-y-2 text-xs"></div>
             </div>
 
             <div class="request-card p-5">
@@ -141,6 +142,35 @@
                 <div class="request-modal-foot flex justify-end gap-2 border-t px-5 py-4">
                     <button type="button" onclick="closeApprovalModal()" class="request-secondary-btn">Cancel</button>
                     <button type="button" id="approvalModalSubmit" onclick="submitApprovalModal()" class="request-primary-btn">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="freeRouteModal" class="fixed inset-0 z-[70] hidden">
+        <div class="absolute inset-0 bg-black/50" onclick="closeFreeRouteModal()"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="request-modal-panel w-full">
+                <div class="request-modal-head flex items-center justify-between border-b px-5 py-4">
+                    <h3 id="freeRouteModalTitle" class="text-base font-bold">Send To</h3>
+                    <button type="button" onclick="closeFreeRouteModal()" class="text-gray-500 hover:text-gray-700"><span class="material-icons-round">close</span></button>
+                </div>
+                <div class="space-y-3 p-5">
+                    <label class="block text-sm font-medium">
+                        <span>Employee</span>
+                        <select id="freeRouteEmployee" class="request-control mt-1">
+                            <option value="">Select employee</option>
+                        </select>
+                    </label>
+                    <label class="block text-sm font-medium">
+                        <span>Comment (optional)</span>
+                        <textarea id="freeRouteComment" rows="4" class="request-control mt-1" placeholder="Add a comment"></textarea>
+                    </label>
+                    <p id="freeRouteError" class="hidden text-sm font-medium text-red-600"></p>
+                </div>
+                <div class="request-modal-foot flex justify-end gap-2 border-t px-5 py-4">
+                    <button type="button" onclick="closeFreeRouteModal()" class="request-secondary-btn">Cancel</button>
+                    <button type="button" id="freeRouteModalSubmit" onclick="submitFreeRouteModal()" class="request-primary-btn">Confirm</button>
                 </div>
             </div>
         </div>
@@ -241,6 +271,69 @@
             }
         }
 
+        let freeRouteModalState = null;
+        function openFreeRouteModal(mode, taskId = null) {
+            freeRouteModalState = mode === 'forward' ? { mode, taskId } : { mode };
+            document.getElementById('freeRouteModalTitle').textContent = mode === 'forward' ? 'Forward Request' : 'Send To';
+            document.getElementById('freeRouteEmployee').innerHTML = '<option value="">Loading...</option>';
+            document.getElementById('freeRouteComment').value = '';
+            document.getElementById('freeRouteError').classList.add('hidden');
+            document.getElementById('freeRouteModal').classList.remove('hidden');
+            loadFreeRouteRecipients();
+        }
+
+        function closeFreeRouteModal() {
+            document.getElementById('freeRouteModal').classList.add('hidden');
+            freeRouteModalState = null;
+        }
+
+        async function loadFreeRouteRecipients() {
+            const select = document.getElementById('freeRouteEmployee');
+            try {
+                const options = await json(`${api}/free-route/recipients?requestId=${requestId}`);
+                select.innerHTML = '<option value="">Select employee</option>' +
+                    (options || []).map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+            } catch (e) {
+                select.innerHTML = '<option value="">Select employee</option>';
+                document.getElementById('freeRouteError').textContent = e.message;
+                document.getElementById('freeRouteError').classList.remove('hidden');
+            }
+        }
+
+        async function submitFreeRouteModal() {
+            if (!freeRouteModalState) return;
+            const { mode, taskId } = freeRouteModalState;
+            const selectedId = document.getElementById('freeRouteEmployee').value;
+            const comment = document.getElementById('freeRouteComment').value.trim();
+            const errorEl = document.getElementById('freeRouteError');
+            if (!selectedId) {
+                errorEl.textContent = 'Select an employee.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            try {
+                if (mode === 'forward') {
+                    await json(`${api}/free-route/forward`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ taskId, toEmployeeId: Number(selectedId), comment })
+                    });
+                } else {
+                    await json(`${api}/${requestId}/free-route/send`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ toEmployeeId: Number(selectedId), comment })
+                    });
+                }
+                closeFreeRouteModal();
+                showToast(mode === 'forward' ? 'Request forwarded.' : 'Request sent.', 'success');
+                await load();
+            } catch (e) {
+                errorEl.textContent = e.message;
+                errorEl.classList.remove('hidden');
+            }
+        }
+
         async function json(url, options) {
             const response = await fetch(url, options);
             if (!response.ok) throw new Error(await response.text());
@@ -331,8 +424,18 @@
                 <li class="request-timeline-item">
                     <p><b>Level ${s.sequenceNo}</b> - ${fmt(s.decision)}</p>
                     <p>Approver employee ID: ${s.approverEmployeeId}</p>
+                    ${s.decision === 'DELEGATED' ? `<p>Forwarded to employee ID: ${s.forwardedToEmployeeId}</p>` : ''}
                     <p>${text(s.comments)}</p>
                 </li>`).join('') : '<li class="text-gray-500">Not submitted.</li>';
+            renderFreeRouteEvents();
+        }
+
+        function renderFreeRouteEvents() {
+            const container = document.getElementById('freeRouteEvents');
+            const rows = detail.freeRouteEvents || [];
+            if (!rows.length) { container.innerHTML = ''; return; }
+            container.innerHTML = `<p class="font-semibold text-gray-500">Free Route Movement</p>` + rows.map(ev => `
+                <p class="text-gray-500">${fmt(ev.eventType)} from employee ${ev.fromEmployeeId} to employee ${ev.toEmployeeId}${ev.comment ? ` — ${text(ev.comment)}` : ''}</p>`).join('');
         }
 
         function renderComments() {
@@ -350,12 +453,14 @@
             const task = tasks.find(t => t.variables && Number(t.variables.workflowRequestId) === requestId);
             const actions = [];
             if (isOwner() && ['DRAFT','RETURNED_FOR_CORRECTION'].includes(r.status)) actions.push(`<button onclick="submitRequest()" class="request-primary-btn">Submit</button>`);
+            if (isOwner() && ['DRAFT','RETURNED_FOR_CORRECTION'].includes(r.status)) actions.push(`<button onclick="openFreeRouteModal('send')" class="request-secondary-btn">Send To</button>`);
             if (isOwner() && !['APPROVED','REJECTED','CANCELLED','CLOSED'].includes(r.status)) actions.push(`<button onclick="cancelRequest()" class="request-danger-btn">Cancel</button>`);
             if (context.hrAdmin && r.status === 'APPROVED') actions.push(`<button onclick="closeRequest()" class="request-secondary-btn">Close</button>`);
             if (task) {
                 actions.push(`<button onclick="openApprovalModal('${task.taskId}','approve')" class="request-success-btn">Approve</button>`);
                 actions.push(`<button onclick="openApprovalModal('${task.taskId}','reject')" class="request-danger-btn">Reject</button>`);
                 actions.push(`<button onclick="openApprovalModal('${task.taskId}','return')" class="request-warning-btn">Return</button>`);
+                if (r.approvalRouteType === 'FREE_ROUTE') actions.push(`<button onclick="openFreeRouteModal('forward','${task.taskId}')" class="request-secondary-btn">Forward</button>`);
             }
             document.getElementById('primaryActions').innerHTML = actions.join('');
         }
