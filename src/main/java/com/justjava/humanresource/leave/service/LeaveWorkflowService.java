@@ -128,7 +128,7 @@ public class LeaveWorkflowService {
 
             Long firstApproverId = route.get(0).getEmployeeId();
             afterCommitExecutor.runAfterCommit(() -> {
-                leaveEmailService.notifyLeaveSubmitted(saved);
+                leaveEmailService.notifyLeaveSubmitted(saved, firstApproverId);
                 leaveEmailService.notifyPendingApproval(saved, firstApproverId);
             });
 
