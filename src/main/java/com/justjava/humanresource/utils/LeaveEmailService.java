@@ -20,15 +20,13 @@ public class LeaveEmailService {
     private final EmployeeService employeeService;
     private final ResendService resendService;
 
-    // These notify* methods are invoked from AfterCommitExecutor, i.e. AFTER the
-    // originating transaction has already committed. Without an active transaction,
-    // Hibernate falls back to an ad-hoc auto-commit session to lazily load
-    // requester -> department -> company, which can fail outside a real transaction
-    // depending on what's being fetched. REQUIRES_NEW opens a fresh, genuine
-    // transaction for the entire lookup chain so those lazy loads are always safe.
+
+    public void notifyLeaveSubmitted(LeaveRequest request) {
+        notifyLeaveSubmitted(request, null);
+    }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
-    public void notifyLeaveSubmitted(LeaveRequest request) {
+    public void notifyLeaveSubmitted(LeaveRequest request, Long currentApproverEmployeeId) {
         if (request == null) {
             log.warn("Leave email: notifyLeaveSubmitted called with a null request.");
             return;
@@ -42,16 +40,78 @@ public class LeaveEmailService {
         Company company = resolveCompany(requester);
         String companyName = resolveCompanyName(company);
 
+        String approverName = currentApproverEmployeeId != null
+                ? employeeDisplayName(safeGetEmployee(currentApproverEmployeeId, "leave submission current approver"))
+                : "";
+        boolean hasApproverName = !approverName.isBlank();
+
         String employeeName = requester.getFullName();
         String subject = "Leave request received";
+
+        StringBuilder text = new StringBuilder()
+                .append("Dear ").append(employeeName).append(",\n\n")
+                .append("Your leave request has been received and is now being processed.");
+        if (hasApproverName) {
+            text.append(" It is currently with ").append(approverName).append(" for approval.");
+        }
+        text.append(" You will be notified when a decision is made.\n\n")
+                .append("Regards,\n").append(companyName);
+
+        StringBuilder htmlBody = new StringBuilder()
+                .append("<p>Dear ").append(html(employeeName)).append(",</p>")
+                .append("<p>Your <strong>leave</strong> request has been received and is now being processed.");
+        if (hasApproverName) {
+            htmlBody.append(" It is currently with <strong>").append(html(approverName)).append("</strong> for approval.");
+        }
+        htmlBody.append(" You will be notified when a decision is made.</p>")
+                .append("<p>Regards,<br><strong>").append(html(companyName)).append("</strong></p>");
+
+        sendBestEffort(requester, subject, htmlBody.toString(), text.toString(), "leave submission notice");
+    }
+
+    // Requester-facing notice that the leave has moved to a new (next) approver.
+    // Deliberately separate from notifyPendingApproval, which is the approver-facing
+    // "you have work to do" email and must not be touched by this feature.
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    public void notifyLeaveMovedToApprover(LeaveRequest request, Long currentApproverEmployeeId) {
+        if (request == null) {
+            log.warn("Leave email: notifyLeaveMovedToApprover called with a null request.");
+            return;
+        }
+
+        Employee requester = safeGetEmployee(request.getEmployeeId(), "leave movement requester");
+        if (requester == null) {
+            return;
+        }
+
+        Employee currentApprover = safeGetEmployee(currentApproverEmployeeId, "leave movement current approver");
+        if (currentApprover == null) {
+            log.warn("Leave email: skipping movement notice for leave request {} - current approver could not be resolved.",
+                    request.getId());
+            return;
+        }
+
+        String approverName = employeeDisplayName(currentApprover);
+        if (approverName.isBlank()) {
+            log.warn("Leave email: skipping movement notice for leave request {} - current approver has no usable name.",
+                    request.getId());
+            return;
+        }
+
+        Company company = resolveCompany(requester);
+        String companyName = resolveCompanyName(company);
+
+        String employeeName = requester.getFullName();
+        String subject = "Leave request moved to next approver";
         String text = "Dear " + employeeName + ",\n\n"
-                + "Your leave request has been received and is now being processed. You will be notified when a decision is made.\n\n"
+                + "Your leave request has moved to the next approval stage. It is now with " + approverName + " for approval.\n\n"
                 + "Regards,\n" + companyName;
         String html = "<p>Dear " + html(employeeName) + ",</p>"
-                + "<p>Your <strong>leave</strong> request has been received and is now being processed. You will be notified when a decision is made.</p>"
+                + "<p>Your <strong>leave</strong> request has moved to the next approval stage. It is now with <strong>"
+                + html(approverName) + "</strong> for approval.</p>"
                 + "<p>Regards,<br><strong>" + html(companyName) + "</strong></p>";
 
-        sendBestEffort(requester, subject, html, text, "leave submission notice");
+        sendBestEffort(requester, subject, html, text, "leave moved to next approver notice");
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
@@ -165,6 +225,20 @@ public class LeaveEmailService {
             log.warn("Leave email: could not resolve {} (employee {}): {}", context, employeeId, e.getMessage());
             return null;
         }
+    }
+
+
+    private String employeeDisplayName(Employee employee) {
+        if (employee == null) {
+            return "";
+        }
+        String firstName = employee.getFirstName() == null ? "" : employee.getFirstName().trim();
+        String lastName = employee.getLastName() == null ? "" : employee.getLastName().trim();
+        String displayName = (firstName + " " + lastName).trim();
+        if (!displayName.isBlank()) {
+            return displayName;
+        }
+        return employee.getFullName() == null ? "" : employee.getFullName().trim();
     }
 
     private Company resolveCompany(Employee requester) {

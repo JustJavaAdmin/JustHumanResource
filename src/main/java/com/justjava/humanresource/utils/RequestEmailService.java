@@ -24,8 +24,13 @@ public class RequestEmailService {
 
 
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+
     public void notifyRequestSubmitted(WorkflowRequest request) {
+        notifyRequestSubmitted(request, null);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    public void notifyRequestSubmitted(WorkflowRequest request, Long currentApproverEmployeeId) {
         if (request == null) {
             log.warn("Request email: notifyRequestSubmitted called with a null request.");
             return;
@@ -40,16 +45,77 @@ public class RequestEmailService {
         String companyName = resolveCompanyName(company);
         String requestTypePhrase = requestTypePhrase(request);
 
+        String approverName = currentApproverEmployeeId != null
+                ? employeeDisplayName(safeGetEmployee(currentApproverEmployeeId, "request submission current approver"))
+                : "";
+        boolean hasApproverName = !approverName.isBlank();
+
         String employeeName = requester.getFullName();
         String subject = "Request received";
+
+        StringBuilder text = new StringBuilder()
+                .append("Dear ").append(employeeName).append(",\n\n")
+                .append("Your ").append(requestTypePhrase).append(" has been received and is now being processed.");
+        if (hasApproverName) {
+            text.append(" It is currently with ").append(approverName).append(" for approval.");
+        }
+        text.append(" You will be notified when a decision is made.\n\n")
+                .append("Regards,\n").append(companyName);
+
+        StringBuilder htmlBody = new StringBuilder()
+                .append("<p>Dear ").append(html(employeeName)).append(",</p>")
+                .append("<p>Your <strong>").append(html(requestTypePhrase)).append("</strong> has been received and is now being processed.");
+        if (hasApproverName) {
+            htmlBody.append(" It is currently with <strong>").append(html(approverName)).append("</strong> for approval.");
+        }
+        htmlBody.append(" You will be notified when a decision is made.</p>")
+                .append("<p>Regards,<br><strong>").append(html(companyName)).append("</strong></p>");
+
+        sendBestEffort(requester, subject, htmlBody.toString(), text.toString(), "request submission notice");
+    }
+
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    public void notifyRequestMovedToApprover(WorkflowRequest request, Long currentApproverEmployeeId) {
+        if (request == null) {
+            log.warn("Request email: notifyRequestMovedToApprover called with a null request.");
+            return;
+        }
+
+        Employee requester = safeGetEmployee(request.getRequesterEmployeeId(), "request movement requester");
+        if (requester == null) {
+            return;
+        }
+
+        Employee currentApprover = safeGetEmployee(currentApproverEmployeeId, "request movement current approver");
+        if (currentApprover == null) {
+            log.warn("Request email: skipping movement notice for request {} - current approver could not be resolved.",
+                    request.getId());
+            return;
+        }
+
+        String approverName = employeeDisplayName(currentApprover);
+        if (approverName.isBlank()) {
+            log.warn("Request email: skipping movement notice for request {} - current approver has no usable name.",
+                    request.getId());
+            return;
+        }
+
+        Company company = resolveCompany(requester);
+        String companyName = resolveCompanyName(company);
+        String requestTypePhrase = requestTypePhrase(request);
+
+        String employeeName = requester.getFullName();
+        String subject = "Request moved to next approver";
         String text = "Dear " + employeeName + ",\n\n"
-                + "Your " + requestTypePhrase + " has been received and is now being processed. You will be notified when a decision is made.\n\n"
+                + "Your " + requestTypePhrase + " has moved to the next approval stage. It is now with " + approverName + " for approval.\n\n"
                 + "Regards,\n" + companyName;
         String html = "<p>Dear " + html(employeeName) + ",</p>"
-                + "<p>Your <strong>" + html(requestTypePhrase) + "</strong> has been received and is now being processed. You will be notified when a decision is made.</p>"
+                + "<p>Your <strong>" + html(requestTypePhrase) + "</strong> has moved to the next approval stage. It is now with <strong>"
+                + html(approverName) + "</strong> for approval.</p>"
                 + "<p>Regards,<br><strong>" + html(companyName) + "</strong></p>";
 
-        sendBestEffort(requester, subject, html, text, "request submission notice");
+        sendBestEffort(requester, subject, html, text, "request moved to next approver notice");
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
@@ -194,6 +260,22 @@ public class RequestEmailService {
             log.warn("Request email: could not resolve {} (employee {}): {}", context, employeeId, e.getMessage());
             return null;
         }
+    }
+
+    // Requirement: approver names shown to the requester must be exactly
+    // firstName + " " + lastName - never employee number, department, or a
+    // UI lookup label. Falls back to getFullName(), then to an empty string.
+    private String employeeDisplayName(Employee employee) {
+        if (employee == null) {
+            return "";
+        }
+        String firstName = employee.getFirstName() == null ? "" : employee.getFirstName().trim();
+        String lastName = employee.getLastName() == null ? "" : employee.getLastName().trim();
+        String displayName = (firstName + " " + lastName).trim();
+        if (!displayName.isBlank()) {
+            return displayName;
+        }
+        return employee.getFullName() == null ? "" : employee.getFullName().trim();
     }
 
     private Company resolveCompany(Employee requester) {

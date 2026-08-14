@@ -85,9 +85,10 @@ public class ProcessLeaveApprovalDecisionDelegate implements JavaDelegate {
 
             Long nextApproverId = Long.parseLong(approverIds.get(nextLevel));
             LeaveRequest notificationRequest = request;
-            afterCommitExecutor.runAfterCommit(() ->
-                    leaveEmailService.notifyPendingApproval(notificationRequest, nextApproverId)
-            );
+            afterCommitExecutor.runAfterCommit(() -> {
+                leaveEmailService.notifyLeaveMovedToApprover(notificationRequest, nextApproverId);
+                leaveEmailService.notifyPendingApproval(notificationRequest, nextApproverId);
+            });
         }
     }
 }
