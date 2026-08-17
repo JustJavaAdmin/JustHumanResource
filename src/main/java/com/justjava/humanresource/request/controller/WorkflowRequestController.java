@@ -23,8 +23,12 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.stream.Collectors;
 
 @RestController @RequestMapping("/api/requests") @RequiredArgsConstructor
 public class WorkflowRequestController {
@@ -39,6 +43,7 @@ public class WorkflowRequestController {
  @GetMapping("/visible") public List<WorkflowRequest> visible(){return service.visibleRequests();}
  @GetMapping("/all") public List<WorkflowRequest> all(){return service.allRequests();}
  @GetMapping("/context") public java.util.Map<String,Object> context(){return service.context();}
+ @GetMapping("/employees/names") public Map<Long,String> employeeNames(@RequestParam List<Long> ids){Set<Long> idSet=new HashSet<>(ids);return employeeRepository.findAllVisible().stream().filter(e->idSet.contains(e.getId())).collect(Collectors.toMap(Employee::getId,Employee::getFullName));}
  @GetMapping("/{id}") public WorkflowRequestDetailDTO details(@PathVariable Long id){return service.details(id);}
  @GetMapping("/types") public List<WorkflowRequestType> requestTypes(){return types.findByEnabledTrueOrderByName();}
  @GetMapping("/types/{code}") public WorkflowRequestType requestType(@PathVariable String code){return types.findByCode(code.toUpperCase()).orElseThrow(()->new IllegalArgumentException("Request type not found."));}

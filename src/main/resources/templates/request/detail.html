@@ -32,9 +32,9 @@
         <div class="flex items-start gap-4">
             <span class="request-icon bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-200"><span class="material-icons-round">article</span></span>
             <div>
-            <a href="/requests" class="text-sm text-primary-600 hover:underline">Back to Requests</a>
-            <h1 id="requestTitle" class="mt-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Request</h1>
-            <p id="requestMeta" class="text-sm text-gray-500 dark:text-gray-400"></p>
+                <a href="/requests" class="text-sm text-primary-600 hover:underline">Back to Requests</a>
+                <h1 id="requestTitle" class="mt-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Request</h1>
+                <p id="requestMeta" class="text-sm text-gray-500 dark:text-gray-400"></p>
             </div>
         </div>
         <div id="primaryActions" class="flex flex-wrap gap-2"></div>
@@ -80,6 +80,7 @@
             <div class="request-card p-5">
                 <h2 class="flex items-center gap-2 text-base font-semibold"><span class="material-icons-round text-primary-600">timeline</span>Approval Timeline</h2>
                 <ol id="approvalSteps" class="mt-4 space-y-3 text-sm"></ol>
+                <div id="freeRouteEvents" class="mt-4 space-y-2 text-xs"></div>
             </div>
 
             <div class="request-card p-5">
@@ -105,9 +106,11 @@
         let detail = null;
         let context = null;
         let tasks = [];
+        let employeeNames = {};
 
         function text(value) { return value == null || value === '' ? '-' : value; }
         function fmt(value) { return (value || '').replaceAll('_', ' '); }
+        function employeeName(id) { return id == null ? '-' : (employeeNames[id] || `Employee #${id}`); }
         function isOwner() { return detail && context && detail.request.requesterEmployeeId === context.employeeId; }
         function canEditAttachments() { return isOwner() && ['DRAFT','SUBMITTED','RETURNED_FOR_CORRECTION'].includes(detail.request.status); }
         function canRemoveAttachments() { return isOwner() && ['DRAFT','RETURNED_FOR_CORRECTION'].includes(detail.request.status); }
@@ -126,9 +129,24 @@
                     json(`${api}/context`),
                     json(`${api}/approvals/tasks`)
                 ]);
+                await loadEmployeeNames();
                 render();
             } catch (e) {
                 document.querySelector('main').innerHTML = `<div class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">${e.message}</div>`;
+            }
+        }
+
+        async function loadEmployeeNames() {
+            const ids = new Set();
+            if (detail.request.requesterEmployeeId != null) ids.add(detail.request.requesterEmployeeId);
+            (detail.approvalSteps || []).forEach(s => {
+                if (s.approverEmployeeId != null) ids.add(s.approverEmployeeId);
+            });
+            if (!ids.size) { employeeNames = {}; return; }
+            try {
+                employeeNames = await json(`${api}/employees/names?ids=${[...ids].join(',')}`);
+            } catch (e) {
+                employeeNames = {};
             }
         }
 
@@ -139,6 +157,7 @@
             document.getElementById('summary').innerHTML = `
                 <b>Description</b><span>${text(r.description)}</span>
                 <b>Requester employee ID</b><span>${r.requesterEmployeeId}</span>
+                <b>Requester employee Name</b><span>${employeeName(r.requesterEmployeeId)}</span>
                 <b>Department ID</b><span>${text(r.departmentId)}</span>
                 <b>Submitted</b><span>${text(r.submittedAt)}</span>`;
             renderTypeDetails();
@@ -202,8 +221,32 @@
                 <li class="request-timeline-item">
                     <p><b>Level ${s.sequenceNo}</b> - ${fmt(s.decision)}</p>
                     <p>Approver employee ID: ${s.approverEmployeeId}</p>
-                    <p>${text(s.comments)}</p>
+                    <p>Approver employee Name: ${employeeName(s.approverEmployeeId)}</p>
+                    <p>Approver employee comment: ${text(s.comments)}</p>
                 </li>`).join('') : '<li class="text-gray-500">Not submitted.</li>';
+            renderFreeRouteEvents();
+        }
+
+        function escapeHtml(value) {
+            if (value == null) return '';
+            return String(value)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        function renderFreeRouteEvents() {
+            const container = document.getElementById('freeRouteEvents');
+            const rows = detail.freeRouteEvents || [];
+            const sent = rows.find(ev => ev.eventType === 'SENT' && ev.comment && ev.comment.trim());
+            if (!sent) { container.innerHTML = ''; return; }
+            container.innerHTML = `
+                <div class="request-timeline-item">
+                    <p class="font-semibold text-gray-600 dark:text-gray-300">Requester comment</p>
+                    <p class="mt-1 text-gray-600 dark:text-gray-300">${escapeHtml(sent.comment)}</p>
+                </div>`;
         }
 
         function renderComments() {
