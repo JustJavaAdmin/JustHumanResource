@@ -100,6 +100,17 @@
         </aside>
     </section>
 
+    <div id="closeModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4" onclick="if (event.target === this) hideCloseModal()">
+        <div class="request-card w-full max-w-sm p-5">
+            <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">Close this request?</h3>
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">This marks the request as closed. This can't be undone from here.</p>
+            <div class="mt-5 flex justify-end gap-2">
+                <button onclick="hideCloseModal()" class="request-secondary-btn">Cancel</button>
+                <button onclick="confirmCloseRequest()" class="request-primary-btn">Close request</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const api = '/api/requests';
         const requestId = Number(location.pathname.split('/').pop());
@@ -276,7 +287,10 @@
 
         async function submitRequest() { await mutate(`${api}/${requestId}/submit`, 'POST'); }
         async function cancelRequest() { if (confirm('Cancel this request?')) await mutate(`${api}/${requestId}/cancel`, 'POST'); }
-        async function closeRequest() { if (confirm('Close this request?')) await mutate(`${api}/${requestId}/close`, 'POST'); }
+        function closeRequest() { showCloseModal(); }
+        function showCloseModal() { const m = document.getElementById('closeModal'); m.classList.remove('hidden'); m.classList.add('flex'); }
+        function hideCloseModal() { const m = document.getElementById('closeModal'); m.classList.add('hidden'); m.classList.remove('flex'); }
+        async function confirmCloseRequest() { hideCloseModal(); await mutate(`${api}/${requestId}/close`, 'POST'); }
         async function mutate(url, method) {
             try { await json(url, {method}); await load(); } catch (e) { alert(e.message); }
         }

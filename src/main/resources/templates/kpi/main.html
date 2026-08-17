@@ -1183,29 +1183,17 @@
                     </div>
                 </div>
 
-                <!-- Impact Salary Toggle -->
-                <div class="p-4 bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg">
-                    <div class="flex items-center justify-between gap-4">
-                        <div class="flex items-center gap-2">
-                            <span class="material-icons-round text-gray-600 dark:text-gray-400 text-lg">payments</span>
-                            <label for="kpiImpactSalary" class="text-sm font-semibold text-gray-800 dark:text-gray-100 cursor-pointer select-none">
-                                This KPI impacts salary calculation
-                            </label>
-                        </div>
-                        <!-- Toggle switch -->
-                        <label for="kpiImpactSalary" class="relative inline-flex items-center cursor-pointer flex-shrink-0">
-                            <input type="checkbox" name="impactSalary" id="kpiImpactSalary" value="true" class="sr-only peer">
-                            <div class="w-11 h-6 bg-red-400 dark:bg-red-500 rounded-full peer
-                                        peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500
-                                        after:content-[''] after:absolute after:top-[2px] after:left-[2px]
-                                        after:bg-white after:rounded-full after:h-5 after:w-5
-                                        after:transition-all peer-checked:after:translate-x-5
-                                        focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-1">
-                            </div>
+                <!-- Impact Salary -->
+                <div>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" name="impactSalary" id="kpiImpactSalary" value="true"
+                               class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500">
+                        <label for="kpiImpactSalary" class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                            Tick for KPI to impacts salary calculation
                         </label>
                     </div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-7">
-                        When enabled, the measured score for this KPI will be factored into the employee's gross pay calculation. Leave off for tracking-only KPIs.
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-6">
+                        When ticked, the measured score for this KPI will be factored into the employee's gross pay calculation. Leave unticked for tracking-only KPIs.
                     </p>
                 </div>
 
@@ -1522,6 +1510,7 @@
             document.getElementById('kpiCategory').value = kpi.category;
             document.getElementById('kpiTarget').value = kpi.targetValue;
             document.getElementById('kpiUnit').value = kpi.unit;
+            document.getElementById('kpiImpactSalary').checked = !!kpi.impactSalary;
 
             openModal('kpiDefinitionModal', true);
         }
