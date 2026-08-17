@@ -157,8 +157,8 @@
             <div class="request-modal-panel mx-auto my-8">
                 <div class="request-modal-head top-0 flex items-center justify-between border-b px-6 py-4">
                     <div>
-                        <h3 class="text-lg font-bold">New Request</h3>
-                        <p class="text-sm text-gray-500">Create a draft, attach documents where required, then submit for approval.</p>
+                        <h3 id="requestModalTitle" class="text-lg font-bold">New Request</h3>
+                        <p id="requestModalSubtitle" class="text-sm text-gray-500">Create a draft, attach documents where required, then submit for approval.</p>
                     </div>
                     <button type="button" onclick="closeRequestModal()" class="text-gray-500 hover:text-gray-700">
                         <span class="material-icons-round">close</span>
@@ -263,7 +263,7 @@
 
                     <div class="request-modal-foot bottom-0 flex justify-end gap-2 border-t pt-4">
                         <button type="button" onclick="closeRequestModal()" class="rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-600">Cancel</button>
-                        <button type="submit" class="request-primary-btn">Create Draft</button>
+                        <button type="submit" id="requestFormSubmitBtn" class="request-primary-btn">Create Draft</button>
                     </div>
                 </form>
             </div>
@@ -394,8 +394,14 @@
         let assetCategoryOptionsLoaded = false;
         let managedAssetCatalog = [];
         let editingAssetItemId = null;
+        let requestModalMode = 'create';
+        let editingRequestId = null;
+        let context = null;
 
-        function openRequestModal() { document.getElementById('requestModal').classList.remove('hidden'); }
+        function openRequestModal() {
+            resetRequestModal();
+            document.getElementById('requestModal').classList.remove('hidden');
+        }
         function closeRequestModal() { document.getElementById('requestModal').classList.add('hidden'); }
 
         function showToast(message, type = 'error') {
@@ -617,13 +623,14 @@
 
         async function loadData() {
             try {
-                [requests, tasks, types, staffOptions, fileOptions, expenseOptions] = await Promise.all([
+                [requests, tasks, types, staffOptions, fileOptions, expenseOptions, context] = await Promise.all([
                     json(api + '/visible'),
                     json(api + '/approvals/tasks'),
                     json(api + '/types'),
                     json(api + '/staff-requisition-options'),
                     json(api + '/file-options'),
-                    json(api + '/expense-reimbursement-options')
+                    json(api + '/expense-reimbursement-options'),
+                    json(api + '/context')
                 ]);
                 requests = requests || [];
                 tasks = tasks || [];
@@ -631,6 +638,7 @@
                 staffOptions = staffOptions || {};
                 fileOptions = fileOptions || {};
                 expenseOptions = expenseOptions || {};
+                context = context || {};
                 renderTypeOptions();
                 renderStaffOptions();
                 renderFileOptions();
@@ -700,6 +708,32 @@
             select.value = current;
         }
 
+        function isRequestOwner(r) {
+            return context && Number(r.requesterEmployeeId) === Number(context.employeeId);
+        }
+
+        function rowWasFreeRoute(r) {
+            return r.approvalRouteType === 'FREE_ROUTE';
+        }
+
+        function canSubmitRequestRow(r) {
+            if (!isRequestOwner(r)) return false;
+            if (r.status === 'DRAFT') return true;
+            if (r.status === 'RETURNED_FOR_CORRECTION') return !rowWasFreeRoute(r);
+            return false;
+        }
+
+        function canSendFreeRouteRequestRow(r) {
+            if (!isRequestOwner(r)) return false;
+            if (r.status === 'DRAFT') return true;
+            if (r.status === 'RETURNED_FOR_CORRECTION') return rowWasFreeRoute(r);
+            return false;
+        }
+
+        function canEditRequestRow(r) {
+            return canSubmitRequestRow(r) || canSendFreeRouteRequestRow(r);
+        }
+
         function renderRequests() {
             const type = document.getElementById('typeFilter').value;
             const status = document.getElementById('statusFilter').value;
@@ -718,7 +752,16 @@
                     <td class="px-4 py-3">${fmtType(r.requestType)}</td>
                     <td class="px-4 py-3">${r.priority || ''}</td>
                     <td class="px-4 py-3">${badge(r.status)}</td>
-                    <td class="px-4 py-3"><a class="text-primary-600 hover:underline" href="${pageBase}/${r.id}">Open</a></td>
+                    <td class="px-4 py-3 space-x-1 whitespace-nowrap">
+                        <a class="text-primary-600 hover:underline" href="${pageBase}/${r.id}">Open</a>
+                        ${canEditRequestRow(r) ? `<button type="button"
+                                onclick="openEditRequestModal(${r.id})"
+                                class="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200"
+                                title="Edit request"
+                                aria-label="Edit request">
+                            <span class="material-icons-round text-sm">edit</span>
+                        </button>` : ''}
+                    </td>
                 </tr>`).join('') : '<tr><td colspan="6"><div class="request-empty"><span class="material-icons-round mb-2 block text-3xl">inbox</span>No requests found.</div></td></tr>';
         }
 
@@ -777,6 +820,111 @@
             document.querySelectorAll(`#${id} input, #${id} select, #${id} textarea, #${id} button`).forEach(element => {
                 element.disabled = !enabled;
             });
+        }
+
+        function resetRequestModal() {
+            requestModalMode = 'create';
+            editingRequestId = null;
+            document.getElementById('requestForm').reset();
+            document.getElementById('itemRows').innerHTML = '';
+            document.getElementById('expenseRows').innerHTML = '';
+            document.getElementById('requestType').disabled = false;
+            document.getElementById('requestModalTitle').textContent = 'New Request';
+            document.getElementById('requestModalSubtitle').textContent = 'Create a draft, attach documents where required, then submit for approval.';
+            document.getElementById('requestFormSubmitBtn').textContent = 'Create Draft';
+            updateExpenseTotal();
+            updateTypeFields();
+        }
+
+        async function openEditRequestModal(id) {
+            try {
+                resetRequestModal();
+                requestModalMode = 'edit';
+                editingRequestId = id;
+                document.getElementById('requestModalTitle').textContent = 'Edit Request';
+                document.getElementById('requestModalSubtitle').textContent = 'Update the request details, then submit or send again from the detail page.';
+                document.getElementById('requestFormSubmitBtn').textContent = 'Save Changes';
+                document.getElementById('requestModal').classList.remove('hidden');
+
+                const data = await json(`${api}/${id}/edit`);
+                if (!data.canEdit) {
+                    closeRequestModal();
+                    showError('This request can no longer be edited.');
+                    return;
+                }
+                await fillRequestForm(data);
+            } catch (e) { showError(e.message); }
+        }
+
+        async function fillRequestForm(data) {
+            document.getElementById('requestType').value = data.requestType || '';
+            document.getElementById('priority').value = data.priority || 'NORMAL';
+            document.getElementById('title').value = data.title || '';
+            document.getElementById('description').value = data.description || '';
+            document.getElementById('requestType').disabled = true;
+            updateTypeFields();
+
+            if (data.requestType === 'STAFF_REQUISITION' && data.staffRequisition) {
+                const staff = data.staffRequisition;
+                document.getElementById('staffJobTitle').value = staff.jobTitle || '';
+                document.getElementById('staffDepartmentId').value = staff.departmentId != null ? staff.departmentId : '';
+                document.getElementById('staffJobGradeId').value = staff.jobGradeId != null ? staff.jobGradeId : '';
+                document.getElementById('staffEmploymentType').value = staff.employmentType || '';
+                document.getElementById('staffPositions').value = staff.numberOfPositions != null ? staff.numberOfPositions : '';
+                document.getElementById('staffRequisitionReason').value = staff.requisitionReason || '';
+                document.getElementById('staffReplacementId').value = staff.replacementEmployeeId != null ? staff.replacementEmployeeId : '';
+                document.getElementById('staffStartDate').value = staff.targetStartDate || '';
+                document.getElementById('staffMonthlyCost').value = staff.estimatedMonthlyCost != null ? staff.estimatedMonthlyCost : '';
+                document.getElementById('staffBudgeted').checked = !!staff.budgeted;
+                document.getElementById('staffReason').value = staff.reasonForHire || '';
+                toggleReplacementEmployee();
+            }
+
+            if (data.requestType === 'FILE_REQUEST' && data.fileRequest) {
+                const file = data.fileRequest;
+                document.getElementById('fileCategory').value = file.fileCategory || '';
+                document.getElementById('fileConfidentiality').value = file.confidentialityLevel || '';
+                document.getElementById('fileAccessType').value = file.requestedAccessType || '';
+                document.getElementById('fileRetention').checked = !!file.retentionRequired;
+                document.getElementById('filePurpose').value = file.purpose || '';
+            }
+
+            if (data.requestType === 'ASSET_REQUEST' && data.assetRequest) {
+                const asset = data.assetRequest;
+                document.getElementById('assetRequiredDate').value = asset.requiredDate || '';
+                document.getElementById('assetJustification').value = asset.businessJustification || '';
+                await loadAssetCatalog();
+                document.getElementById('itemRows').innerHTML = '';
+                (data.items || []).forEach(item => {
+                    addItemRow();
+                    const row = document.getElementById('itemRows').lastElementChild;
+                    const select = row.querySelector('[data-item="famAssetId"]');
+                    select.value = item.famAssetId || '';
+                    row.querySelector('[data-item="quantity"]').value = item.quantity != null ? item.quantity : '';
+                    applySelectedAssetLimit(select);
+                });
+            }
+
+            if (data.requestType === 'EXPENSE_REIMBURSEMENT' && data.expenseReimbursement) {
+                const expense = data.expenseReimbursement;
+                document.getElementById('expenseStartDate').value = expense.expenseStartDate || '';
+                document.getElementById('expenseEndDate').value = expense.expenseEndDate || '';
+                document.getElementById('expensePurpose').value = expense.businessPurpose || '';
+                document.getElementById('expensePaymentMethod').value = expense.paymentMethod || '';
+                document.getElementById('expenseCurrency').value = expense.currency || '';
+                document.getElementById('expenseRows').innerHTML = '';
+                (expense.expenseItems || []).forEach(item => {
+                    addExpenseRow();
+                    const row = document.getElementById('expenseRows').lastElementChild;
+                    row.querySelector('[data-expense="expenseDate"]').value = item.expenseDate || '';
+                    row.querySelector('[data-expense="expenseCategory"]').value = item.expenseCategory || '';
+                    row.querySelector('[data-expense="description"]').value = item.description || '';
+                    row.querySelector('[data-expense="vendorName"]').value = item.vendorName || '';
+                    row.querySelector('[data-expense="amount"]').value = item.amount != null ? item.amount : '';
+                    row.querySelector('[data-expense="remarks"]').value = item.remarks || '';
+                });
+                updateExpenseTotal();
+            }
         }
 
         async function loadAssetCatalog() {
@@ -940,16 +1088,20 @@
         ['typeFilter','statusFilter','priorityFilter','requestSearch'].forEach(id => document.getElementById(id).addEventListener('input', renderRequests));
         document.getElementById('requestForm').addEventListener('submit', async event => {
             event.preventDefault();
+            const wasCreateMode = requestModalMode === 'create';
             try {
-                const created = await json(api, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload())});
-                await uploadInitialAttachment(created.id);
+                const saved = wasCreateMode
+                    ? await json(api, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload())})
+                    : await json(`${api}/${editingRequestId}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload())});
+                await uploadInitialAttachment(saved.id);
                 closeRequestModal();
-                event.target.reset();
-                document.getElementById('itemRows').innerHTML = '';
-                document.getElementById('expenseRows').innerHTML = '';
-                updateExpenseTotal();
+                resetRequestModal();
                 await loadData();
-                location.href = `${pageBase}/${created.id}`;
+                if (wasCreateMode) {
+                    location.href = `${pageBase}/${saved.id}`;
+                } else {
+                    showToast('Request updated.', 'success');
+                }
             } catch (e) { showError(e.message); }
         });
         document.addEventListener('DOMContentLoaded', () => {

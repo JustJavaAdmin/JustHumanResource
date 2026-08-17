@@ -7,6 +7,9 @@ public interface WorkflowRequestTypeHandler {
  RequestType supportedType();
  void validate(CreateWorkflowRequestCommand command);
  void saveDetails(WorkflowRequest request, CreateWorkflowRequestCommand command);
+ default void updateDetails(WorkflowRequest request, CreateWorkflowRequestCommand command) {
+  saveDetails(request, command);
+ }
  default void beforeSubmit(WorkflowRequest request) {}
  default Map<String,Object> buildWorkflowVariables(WorkflowRequest request) { return Map.of(); }
  default void afterApproved(WorkflowRequest request) {}

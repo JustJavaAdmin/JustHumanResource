@@ -183,10 +183,27 @@
         let detail = null;
         let context = null;
         let tasks = [];
+        let employeeNames = {};
 
         function text(value) { return value == null || value === '' ? '-' : value; }
         function fmt(value) { return (value || '').replaceAll('_', ' '); }
+        function employeeName(id) { return id == null ? '-' : (employeeNames[id] || `Employee #${id}`); }
         function isOwner() { return detail && context && detail.request.requesterEmployeeId === context.employeeId; }
+        function wasFreeRoute() { return detail && detail.request && detail.request.approvalRouteType === 'FREE_ROUTE'; }
+        function canSubmitRequest() {
+            if (!isOwner()) return false;
+            const r = detail.request;
+            if (r.status === 'DRAFT') return true;
+            if (r.status === 'RETURNED_FOR_CORRECTION') return !wasFreeRoute();
+            return false;
+        }
+        function canSendFreeRouteRequest() {
+            if (!isOwner()) return false;
+            const r = detail.request;
+            if (r.status === 'DRAFT') return true;
+            if (r.status === 'RETURNED_FOR_CORRECTION') return wasFreeRoute();
+            return false;
+        }
         function canEditAttachments() { return isOwner() && ['DRAFT','SUBMITTED','RETURNED_FOR_CORRECTION'].includes(detail.request.status); }
         function canRemoveAttachments() { return isOwner() && ['DRAFT','RETURNED_FOR_CORRECTION'].includes(detail.request.status); }
 
@@ -348,9 +365,25 @@
                     json(`${api}/context`),
                     json(`${api}/approvals/tasks`)
                 ]);
+                await loadEmployeeNames();
                 render();
             } catch (e) {
                 document.querySelector('main').innerHTML = `<div class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">${e.message}</div>`;
+            }
+        }
+
+        async function loadEmployeeNames() {
+            const ids = new Set();
+            if (detail.request.requesterEmployeeId != null) ids.add(detail.request.requesterEmployeeId);
+            (detail.approvalSteps || []).forEach(s => {
+                if (s.approverEmployeeId != null) ids.add(s.approverEmployeeId);
+                if (s.forwardedToEmployeeId != null) ids.add(s.forwardedToEmployeeId);
+            });
+            if (!ids.size) { employeeNames = {}; return; }
+            try {
+                employeeNames = await json(`${api}/employees/names?ids=${[...ids].join(',')}`);
+            } catch (e) {
+                employeeNames = {};
             }
         }
 
@@ -361,6 +394,7 @@
             document.getElementById('summary').innerHTML = `
                 <b>Description</b><span>${text(r.description)}</span>
                 <b>Requester employee ID</b><span>${r.requesterEmployeeId}</span>
+                <b>Requester employee Name</b><span>${employeeName(r.requesterEmployeeId)}</span>
                 <b>Department ID</b><span>${text(r.departmentId)}</span>
                 <b>Submitted</b><span>${text(r.submittedAt)}</span>`;
             renderTypeDetails();
@@ -424,8 +458,9 @@
                 <li class="request-timeline-item">
                     <p><b>Level ${s.sequenceNo}</b> - ${fmt(s.decision)}</p>
                     <p>Approver employee ID: ${s.approverEmployeeId}</p>
-                    ${s.decision === 'DELEGATED' ? `<p>Forwarded to employee ID: ${s.forwardedToEmployeeId}</p>` : ''}
-                    <p>${text(s.comments)}</p>
+                    <p>Approver employee Name: ${employeeName(s.approverEmployeeId)}</p>
+                    ${s.decision === 'DELEGATED' ? `<p>Forwarded to employee ID: ${s.forwardedToEmployeeId}</p><p>Forwarded to: ${employeeName(s.forwardedToEmployeeId)}</p>` : ''}
+                    <p>Approver employee comment: ${text(s.comments)}</p>
                 </li>`).join('') : '<li class="text-gray-500">Not submitted.</li>';
             renderFreeRouteEvents();
         }
@@ -466,8 +501,8 @@
             const r = detail.request;
             const task = tasks.find(t => t.variables && Number(t.variables.workflowRequestId) === requestId);
             const actions = [];
-            if (isOwner() && ['DRAFT','RETURNED_FOR_CORRECTION'].includes(r.status)) actions.push(`<button onclick="submitRequest()" class="request-primary-btn">Submit</button>`);
-            if (isOwner() && ['DRAFT','RETURNED_FOR_CORRECTION'].includes(r.status)) actions.push(`<button onclick="openFreeRouteModal('send')" class="request-secondary-btn">Send To</button>`);
+            if (canSubmitRequest()) actions.push(`<button onclick="submitRequest()" class="request-primary-btn">Submit</button>`);
+            if (canSendFreeRouteRequest()) actions.push(`<button onclick="openFreeRouteModal('send')" class="request-secondary-btn">Send To</button>`);
             if (isOwner() && !['APPROVED','REJECTED','CANCELLED','CLOSED'].includes(r.status)) actions.push(`<button onclick="cancelRequest()" class="request-danger-btn">Cancel</button>`);
             if (context.hrAdmin && r.status === 'APPROVED') actions.push(`<button onclick="closeRequest()" class="request-secondary-btn">Close</button>`);
             if (task) {
