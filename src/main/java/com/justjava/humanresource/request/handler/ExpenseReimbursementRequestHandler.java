@@ -41,13 +41,47 @@ public class ExpenseReimbursementRequestHandler implements WorkflowRequestTypeHa
 
     public void saveDetails(WorkflowRequest request, CreateWorkflowRequestCommand command) {
         var payload = command.getExpenseReimbursement();
-        BigDecimal total = payload.getExpenseItems().stream()
-                .map(CreateWorkflowRequestCommand.ExpenseItemPayload::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal total = calculateTotal(payload);
         String currency = payload.getCurrency().toUpperCase();
 
         ExpenseReimbursementDetail detail = new ExpenseReimbursementDetail();
         detail.setWorkflowRequestId(request.getId());
+        applyDetailPayload(detail, request, payload, total, currency);
+        detailRepository.save(detail);
+
+        saveItems(request, payload, currency);
+    }
+
+    public void updateDetails(WorkflowRequest request, CreateWorkflowRequestCommand command) {
+        // Same validation as create.
+        validate(command);
+
+        var payload = command.getExpenseReimbursement();
+        BigDecimal total = calculateTotal(payload);
+        String currency = payload.getCurrency().toUpperCase();
+
+        ExpenseReimbursementDetail detail = detailRepository.findByWorkflowRequestId(request.getId())
+                .orElseGet(ExpenseReimbursementDetail::new);
+        if (detail.getWorkflowRequestId() == null) {
+            detail.setWorkflowRequestId(request.getId());
+        }
+        applyDetailPayload(detail, request, payload, total, currency);
+        detailRepository.save(detail);
+
+        // Replace existing expense line rows with the new set from the edit payload.
+        itemRepository.deleteByWorkflowRequestId(request.getId());
+        saveItems(request, payload, currency);
+    }
+
+    private BigDecimal calculateTotal(CreateWorkflowRequestCommand.ExpenseReimbursementPayload payload) {
+        return payload.getExpenseItems().stream()
+                .map(CreateWorkflowRequestCommand.ExpenseItemPayload::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private void applyDetailPayload(ExpenseReimbursementDetail detail, WorkflowRequest request,
+                                    CreateWorkflowRequestCommand.ExpenseReimbursementPayload payload,
+                                    BigDecimal total, String currency) {
         detail.setClaimantEmployeeId(request.getRequesterEmployeeId());
         detail.setDepartmentId(request.getDepartmentId());
         detail.setExpenseStartDate(payload.getExpenseStartDate());
@@ -56,8 +90,9 @@ public class ExpenseReimbursementRequestHandler implements WorkflowRequestTypeHa
         detail.setPaymentMethod(payload.getPaymentMethod());
         detail.setCurrency(currency);
         detail.setTotalClaimAmount(total);
-        detailRepository.save(detail);
+    }
 
+    private void saveItems(WorkflowRequest request, CreateWorkflowRequestCommand.ExpenseReimbursementPayload payload, String currency) {
         for (var payloadItem : payload.getExpenseItems()) {
             ExpenseReimbursementItem item = new ExpenseReimbursementItem();
             item.setWorkflowRequestId(request.getId());

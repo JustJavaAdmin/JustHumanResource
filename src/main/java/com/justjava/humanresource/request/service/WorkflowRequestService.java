@@ -40,8 +40,8 @@ public class WorkflowRequestService {
  private final WorkflowRequestRepository requestRepository; private final WorkflowRequestTypeRepository typeRepository; private final WorkflowRequestItemRepository itemRepository; private final WorkflowRequestAttachmentRepository attachmentRepository; private final WorkflowRequestApprovalStepRepository stepRepository; private final WorkflowRequestCommentRepository commentRepository; private final WorkflowRequestActivityRepository activityRepository; private final StaffRequisitionDetailRepository staffRepository; private final FileRequestDetailRepository fileRepository; private final AssetRequestDetailRepository assetRepository; private final ExpenseReimbursementDetailRepository expenseRepository; private final ExpenseReimbursementItemRepository expenseItemRepository; private final WorkflowRequestHandlerRegistry handlers; private final RequestNumberService numberService; private final WorkflowRequestActivityService activityService; private final EmployeeService employeeService; private final AuthenticationManager auth; private final ApprovalRouteResolverFactory routeFactory; private final RuntimeService runtimeService; private final FlowableTaskService taskService; private final TaskService flowableTaskService; private final FamAssetLookupService famAssetLookupService; private final DepartmentRepository departmentRepository; private final JobGradeRepository jobGradeRepository; private final EmployeeRepository employeeRepository; private final RequestEmailService requestEmailService; private final AfterCommitExecutor afterCommitExecutor; private final WorkflowRequestFreeRouteEventRepository freeRouteEventRepository;
  @Transactional public WorkflowRequest createDraft(CreateWorkflowRequestCommand command){Employee actor=currentEmployee();WorkflowRequestType config=type(command.getRequestType());handlers.get(command.getRequestType()).validate(command);WorkflowRequest r=new WorkflowRequest();r.setRequestNumber(numberService.next(command.getRequestType()));r.setRequestType(command.getRequestType());r.setTitle(command.getTitle().trim());r.setDescription(command.getDescription());r.setPriority(command.getPriority()==null?RequestPriority.NORMAL:command.getPriority());r.setRequesterEmployeeId(actor.getId());r.setDepartmentId(command.getDepartmentId()!=null?command.getDepartmentId():actor.getDepartment()==null?null:actor.getDepartment().getId());r.setStatus(RequestStatus.DRAFT);r=requestRepository.save(r);handlers.get(r.getRequestType()).saveDetails(r,command);saveItems(r,command.getItems());activityService.record(r.getId(),RequestActivityType.CREATED,"Request draft created",actor.getId());return r;}
  @Transactional public WorkflowRequest createAndSubmit(CreateWorkflowRequestCommand command){WorkflowRequest r=createDraft(command);return submit(r.getId());}
- @Transactional public WorkflowRequest submit(Long id){WorkflowRequest r=owned(id);if(!(r.getStatus()==RequestStatus.DRAFT||r.getStatus()==RequestStatus.RETURNED_FOR_CORRECTION))throw new IllegalStateException("Only draft or returned requests can be submitted.");WorkflowRequestType config=type(r.getRequestType());if(config.isRequiresAttachment()&&attachmentRepository.countByWorkflowRequestId(id)==0)throw new IllegalStateException("An attachment is required before submission.");if(config.isSupportsItems()&&itemRepository.countByWorkflowRequestId(id)==0)throw new IllegalStateException("At least one item is required before submission.");handlers.get(r.getRequestType()).beforeSubmit(r);r.setStatus(RequestStatus.SUBMITTED);r.setSubmittedAt(LocalDateTime.now());r=requestRepository.save(r);if(!config.isRequiresApproval()){r.setStatus(RequestStatus.APPROVED);r.setApprovedAt(LocalDateTime.now());handlers.get(r.getRequestType()).afterApproved(r);activityService.record(id,RequestActivityType.APPROVED,"Request automatically approved",r.getRequesterEmployeeId());WorkflowRequest saved=requestRepository.save(r);afterCommitExecutor.runAfterCommit(()->requestEmailService.notifyRequestApproved(saved));return saved;}ApprovalRouteType routeType=config.getApprovalRouteType()==null?ApprovalRouteType.LINE_MANAGER:config.getApprovalRouteType();if(routeType==ApprovalRouteType.CUSTOM&&config.getCustomApprovalPathId()==null)throw new IllegalStateException("A custom approval path must be selected for this request type.");ApprovalContext context=ApprovalContext.builder().moduleType(ApprovalModuleType.REQUEST).routeType(routeType).requesterEmployeeId(r.getRequesterEmployeeId()).moduleRefId(r.getId()).requestTypeCode(r.getRequestType().name()).customApprovalPathId(config.getCustomApprovalPathId()).build();List<ApproverRef> route=routeFactory.getResolver(context).resolveApprovers(context);if(route.isEmpty())throw new IllegalStateException("No approval route is configured for this requester.");List<String> approvers=route.stream().map(a->String.valueOf(a.getEmployeeId())).toList();r.setCurrentApprovalLevel(1);r.setTotalApprovalLevels(approvers.size());r.setStatus(RequestStatus.IN_APPROVAL);r=requestRepository.save(r);Map<String,Object> vars=new HashMap<>(handlers.get(r.getRequestType()).buildWorkflowVariables(r));vars.put("workflowRequestId",r.getId());vars.put("requestType",r.getRequestType().name());vars.put("requesterEmployeeId",r.getRequesterEmployeeId());vars.put("approvalRouteType",routeType.name());vars.put("customApprovalPathId",config.getCustomApprovalPathId());vars.put("approverIds",approvers);vars.put("totalLevels",approvers.size());var pi=runtimeService.startProcessInstanceByKey(config.getProcessDefinitionKey(),"REQUEST_"+r.getId(),vars);r.setWorkflowInstanceId(pi.getProcessInstanceId());activityService.record(id,RequestActivityType.SUBMITTED,"Request submitted for approval",r.getRequesterEmployeeId());WorkflowRequest saved=requestRepository.save(r);Long firstApproverId=route.get(0).getEmployeeId();afterCommitExecutor.runAfterCommit(()->{requestEmailService.notifyRequestSubmitted(saved,firstApproverId);requestEmailService.notifyPendingApproval(saved,firstApproverId);});return saved;}
- @Transactional public WorkflowRequest sendFreeRoute(Long id,Long toEmployeeId,String comment){WorkflowRequest r=owned(id);if(!(r.getStatus()==RequestStatus.DRAFT||r.getStatus()==RequestStatus.RETURNED_FOR_CORRECTION))throw new IllegalStateException("Only draft or returned requests can be sent by Free Route.");if(r.getWorkflowInstanceId()!=null)throw new IllegalStateException("This request already has an active approval process.");WorkflowRequestType config=type(r.getRequestType());if(config.isRequiresAttachment()&&attachmentRepository.countByWorkflowRequestId(id)==0)throw new IllegalStateException("An attachment is required before submission.");if(config.isSupportsItems()&&itemRepository.countByWorkflowRequestId(id)==0)throw new IllegalStateException("At least one item is required before submission.");handlers.get(r.getRequestType()).beforeSubmit(r);if(toEmployeeId==null)throw new IllegalArgumentException("A recipient employee must be selected.");Employee actor=currentEmployee();if(toEmployeeId.equals(r.getRequesterEmployeeId()))throw new IllegalArgumentException("You cannot send a request to the original requester.");if(toEmployeeId.equals(actor.getId()))throw new IllegalArgumentException("You cannot send a request to yourself.");requireSelectableFreeRouteEmployee(toEmployeeId);LocalDateTime now=LocalDateTime.now();r.setApprovalRouteType(ApprovalRouteType.FREE_ROUTE);r.setStatus(RequestStatus.IN_APPROVAL);if(r.getSubmittedAt()==null)r.setSubmittedAt(now);r.setCurrentApprovalLevel(1);r.setTotalApprovalLevels(1);r.setFreeRouteCurrentApproverEmployeeId(toEmployeeId);if(r.getFreeRouteStartedAt()==null)r.setFreeRouteStartedAt(now);r=requestRepository.save(r);Map<String,Object> vars=new HashMap<>(handlers.get(r.getRequestType()).buildWorkflowVariables(r));vars.put("workflowRequestId",r.getId());vars.put("requestType",r.getRequestType().name());vars.put("requesterEmployeeId",r.getRequesterEmployeeId());vars.put("approvalRouteType",ApprovalRouteType.FREE_ROUTE.name());vars.put("approverIds",List.of(String.valueOf(toEmployeeId)));vars.put("totalLevels",1);var pi=runtimeService.startProcessInstanceByKey(config.getProcessDefinitionKey(),"REQUEST_"+r.getId(),vars);r.setWorkflowInstanceId(pi.getProcessInstanceId());WorkflowRequest saved=requestRepository.save(r);WorkflowRequestFreeRouteEvent event=new WorkflowRequestFreeRouteEvent();event.setWorkflowRequestId(id);event.setEventType(FreeRouteEventType.SENT);event.setFromEmployeeId(actor.getId());event.setToEmployeeId(toEmployeeId);event.setComment(comment==null||comment.isBlank()?null:comment.trim());freeRouteEventRepository.save(event);activityService.record(id,RequestActivityType.FREE_ROUTE_SENT,"Request sent by Free Route to employee id: "+toEmployeeId,actor.getId());afterCommitExecutor.runAfterCommit(()->{requestEmailService.notifyRequestSubmitted(saved,toEmployeeId);requestEmailService.notifyPendingApproval(saved,toEmployeeId);});return saved;}
+ @Transactional public WorkflowRequest submit(Long id){WorkflowRequest r=owned(id);if(!canSubmit(r,r.getRequesterEmployeeId()))throw new IllegalStateException("This request cannot be submitted on this route.");WorkflowRequestType config=type(r.getRequestType());if(config.isRequiresAttachment()&&attachmentRepository.countByWorkflowRequestId(id)==0)throw new IllegalStateException("An attachment is required before submission.");if(config.isSupportsItems()&&itemRepository.countByWorkflowRequestId(id)==0)throw new IllegalStateException("At least one item is required before submission.");handlers.get(r.getRequestType()).beforeSubmit(r);r.setStatus(RequestStatus.SUBMITTED);r.setSubmittedAt(LocalDateTime.now());r=requestRepository.save(r);if(!config.isRequiresApproval()){r.setStatus(RequestStatus.APPROVED);r.setApprovedAt(LocalDateTime.now());handlers.get(r.getRequestType()).afterApproved(r);activityService.record(id,RequestActivityType.APPROVED,"Request automatically approved",r.getRequesterEmployeeId());WorkflowRequest saved=requestRepository.save(r);afterCommitExecutor.runAfterCommit(()->requestEmailService.notifyRequestApproved(saved));return saved;}ApprovalRouteType routeType=config.getApprovalRouteType()==null?ApprovalRouteType.LINE_MANAGER:config.getApprovalRouteType();if(routeType==ApprovalRouteType.CUSTOM&&config.getCustomApprovalPathId()==null)throw new IllegalStateException("A custom approval path must be selected for this request type.");r.setApprovalRouteType(routeType);ApprovalContext context=ApprovalContext.builder().moduleType(ApprovalModuleType.REQUEST).routeType(routeType).requesterEmployeeId(r.getRequesterEmployeeId()).moduleRefId(r.getId()).requestTypeCode(r.getRequestType().name()).customApprovalPathId(config.getCustomApprovalPathId()).build();List<ApproverRef> route=routeFactory.getResolver(context).resolveApprovers(context);if(route.isEmpty())throw new IllegalStateException("No approval route is configured for this requester.");List<String> approvers=route.stream().map(a->String.valueOf(a.getEmployeeId())).toList();r.setCurrentApprovalLevel(1);r.setTotalApprovalLevels(approvers.size());r.setStatus(RequestStatus.IN_APPROVAL);r=requestRepository.save(r);Map<String,Object> vars=new HashMap<>(handlers.get(r.getRequestType()).buildWorkflowVariables(r));vars.put("workflowRequestId",r.getId());vars.put("requestType",r.getRequestType().name());vars.put("requesterEmployeeId",r.getRequesterEmployeeId());vars.put("approvalRouteType",routeType.name());vars.put("customApprovalPathId",config.getCustomApprovalPathId());vars.put("approverIds",approvers);vars.put("totalLevels",approvers.size());var pi=runtimeService.startProcessInstanceByKey(config.getProcessDefinitionKey(),"REQUEST_"+r.getId(),vars);r.setWorkflowInstanceId(pi.getProcessInstanceId());activityService.record(id,RequestActivityType.SUBMITTED,"Request submitted for approval",r.getRequesterEmployeeId());WorkflowRequest saved=requestRepository.save(r);Long firstApproverId=route.get(0).getEmployeeId();afterCommitExecutor.runAfterCommit(()->{requestEmailService.notifyRequestSubmitted(saved,firstApproverId);requestEmailService.notifyPendingApproval(saved,firstApproverId);});return saved;}
+ @Transactional public WorkflowRequest sendFreeRoute(Long id,Long toEmployeeId,String comment){WorkflowRequest r=owned(id);if(!canSendFreeRoute(r,r.getRequesterEmployeeId()))throw new IllegalStateException("This request cannot be sent through Free Route.");if(r.getWorkflowInstanceId()!=null)throw new IllegalStateException("This request already has an active approval process.");WorkflowRequestType config=type(r.getRequestType());if(config.isRequiresAttachment()&&attachmentRepository.countByWorkflowRequestId(id)==0)throw new IllegalStateException("An attachment is required before submission.");if(config.isSupportsItems()&&itemRepository.countByWorkflowRequestId(id)==0)throw new IllegalStateException("At least one item is required before submission.");handlers.get(r.getRequestType()).beforeSubmit(r);if(toEmployeeId==null)throw new IllegalArgumentException("A recipient employee must be selected.");Employee actor=currentEmployee();if(toEmployeeId.equals(r.getRequesterEmployeeId()))throw new IllegalArgumentException("You cannot send a request to the original requester.");if(toEmployeeId.equals(actor.getId()))throw new IllegalArgumentException("You cannot send a request to yourself.");requireSelectableFreeRouteEmployee(toEmployeeId);LocalDateTime now=LocalDateTime.now();r.setApprovalRouteType(ApprovalRouteType.FREE_ROUTE);r.setStatus(RequestStatus.IN_APPROVAL);if(r.getSubmittedAt()==null)r.setSubmittedAt(now);r.setCurrentApprovalLevel(1);r.setTotalApprovalLevels(1);r.setFreeRouteCurrentApproverEmployeeId(toEmployeeId);if(r.getFreeRouteStartedAt()==null)r.setFreeRouteStartedAt(now);r=requestRepository.save(r);Map<String,Object> vars=new HashMap<>(handlers.get(r.getRequestType()).buildWorkflowVariables(r));vars.put("workflowRequestId",r.getId());vars.put("requestType",r.getRequestType().name());vars.put("requesterEmployeeId",r.getRequesterEmployeeId());vars.put("approvalRouteType",ApprovalRouteType.FREE_ROUTE.name());vars.put("approverIds",List.of(String.valueOf(toEmployeeId)));vars.put("totalLevels",1);var pi=runtimeService.startProcessInstanceByKey(config.getProcessDefinitionKey(),"REQUEST_"+r.getId(),vars);r.setWorkflowInstanceId(pi.getProcessInstanceId());WorkflowRequest saved=requestRepository.save(r);WorkflowRequestFreeRouteEvent event=new WorkflowRequestFreeRouteEvent();event.setWorkflowRequestId(id);event.setEventType(FreeRouteEventType.SENT);event.setFromEmployeeId(actor.getId());event.setToEmployeeId(toEmployeeId);event.setComment(comment==null||comment.isBlank()?null:comment.trim());freeRouteEventRepository.save(event);activityService.record(id,RequestActivityType.FREE_ROUTE_SENT,"Request sent by Free Route to employee id: "+toEmployeeId,actor.getId());afterCommitExecutor.runAfterCommit(()->{requestEmailService.notifyRequestSubmitted(saved,toEmployeeId);requestEmailService.notifyPendingApproval(saved,toEmployeeId);});return saved;}
  @Transactional public WorkflowRequest forwardFreeRoute(String taskId,Long toEmployeeId,String comment){if(taskId==null||taskId.isBlank())throw new IllegalArgumentException("Task id is required.");Employee actor=currentEmployee();if(!taskService.isTaskAssignedTo(taskId,String.valueOf(actor.getId())))throw new IllegalStateException("Task is not assigned to current user.");Task task=flowableTaskService.createTaskQuery().taskId(taskId).singleResult();if(task==null)throw new IllegalStateException("Task not found: "+taskId);Object rawId=runtimeService.getVariable(task.getProcessInstanceId(),"workflowRequestId");if(rawId==null)throw new IllegalStateException("Task is not linked to a workflow request.");Long requestId=rawId instanceof Number?((Number)rawId).longValue():Long.valueOf(String.valueOf(rawId));WorkflowRequest r=requestRepository.findById(requestId).orElseThrow(()->new IllegalArgumentException("Request not found."));if(r.getStatus()!=RequestStatus.IN_APPROVAL)throw new IllegalStateException("Only requests in approval can be forwarded.");if(r.getApprovalRouteType()!=ApprovalRouteType.FREE_ROUTE)throw new IllegalStateException("Only Free Route requests can be forwarded.");if(!actor.getId().equals(r.getFreeRouteCurrentApproverEmployeeId()))throw new IllegalStateException("Only the current assigned approver can forward this request.");if(toEmployeeId==null)throw new IllegalArgumentException("A recipient employee must be selected.");if(toEmployeeId.equals(r.getRequesterEmployeeId()))throw new IllegalArgumentException("You cannot forward a request to the original requester.");if(toEmployeeId.equals(actor.getId()))throw new IllegalArgumentException("You cannot forward a request to yourself.");requireSelectableFreeRouteEmployee(toEmployeeId);List<WorkflowRequestApprovalStep> steps=stepRepository.findByWorkflowRequestIdOrderBySequenceNo(r.getId());WorkflowRequestApprovalStep currentStep=steps.stream().filter(s->s.getSequenceNo().equals(r.getCurrentApprovalLevel())).findFirst().or(()->steps.stream().filter(s->s.getDecision()==ApprovalDecision.PENDING).reduce((a,b)->b)).orElseThrow(()->new IllegalStateException("No pending approval step found for this request."));int nextSequence=steps.stream().mapToInt(WorkflowRequestApprovalStep::getSequenceNo).max().orElse(0)+1;LocalDateTime now=LocalDateTime.now();currentStep.setDecision(ApprovalDecision.DELEGATED);currentStep.setComments(comment);currentStep.setDecisionAt(now);currentStep.setFlowableTaskId(taskId);currentStep.setForwardedToEmployeeId(toEmployeeId);currentStep.setForwardedAt(now);stepRepository.save(currentStep);WorkflowRequestApprovalStep nextStep=new WorkflowRequestApprovalStep();nextStep.setWorkflowRequestId(r.getId());nextStep.setSequenceNo(nextSequence);nextStep.setApproverEmployeeId(toEmployeeId);nextStep.setDecision(ApprovalDecision.PENDING);stepRepository.save(nextStep);r.setCurrentApprovalLevel(nextSequence);r.setTotalApprovalLevels(nextSequence);r.setFreeRouteCurrentApproverEmployeeId(toEmployeeId);r.setFreeRouteLastForwardedAt(now);WorkflowRequest saved=requestRepository.save(r);flowableTaskService.setAssignee(taskId,String.valueOf(toEmployeeId));Map<String,Object> vars=new HashMap<>();vars.put("currentLevel",nextSequence);vars.put("approvalSequenceBase",0);vars.put("currentApproverId",String.valueOf(toEmployeeId));vars.put("approverIds",List.of(String.valueOf(toEmployeeId)));vars.put("hasMoreApprovers",false);vars.put("totalLevels",1);runtimeService.setVariables(task.getProcessInstanceId(),vars);runtimeService.removeVariables(task.getProcessInstanceId(),List.of("approvalDecision","approvalComment","approvalActorId","flowableTaskId"));WorkflowRequestFreeRouteEvent event=new WorkflowRequestFreeRouteEvent();event.setWorkflowRequestId(r.getId());event.setEventType(FreeRouteEventType.FORWARDED);event.setFromEmployeeId(actor.getId());event.setToEmployeeId(toEmployeeId);event.setComment(comment==null||comment.isBlank()?null:comment.trim());freeRouteEventRepository.save(event);activityService.record(r.getId(),RequestActivityType.FREE_ROUTE_FORWARDED,"Request forwarded by Free Route from employee "+actor.getId()+" to employee "+toEmployeeId,actor.getId());afterCommitExecutor.runAfterCommit(()->{requestEmailService.notifyRequestMovedToApprover(saved,toEmployeeId);requestEmailService.notifyPendingApproval(saved,toEmployeeId);});return saved;}
  @Transactional(readOnly=true) public List<WorkflowRequest> myRequests(){return requestRepository.findByRequesterEmployeeIdOrderByCreatedAtDesc(currentEmployee().getId());}
  @Transactional(readOnly=true) public List<WorkflowRequest> visibleRequests(){return isHrAdmin()?requestRepository.findAllByOrderByCreatedAtDesc():myRequests();}
@@ -60,6 +60,11 @@ public class WorkflowRequestService {
  @Transactional(readOnly=true) public List<RequestLookupOption> freeRouteRecipients(Long requestId){Employee actor=currentEmployee();Set<Long> excluded=new HashSet<>();excluded.add(actor.getId());if(requestId!=null){WorkflowRequest r=visible(requestId);excluded.add(r.getRequesterEmployeeId());}return employeeRepository.findAllVisible().stream().filter(e->e.getEmploymentStatus()==EmploymentStatus.ACTIVE).filter(e->e.getStatus()==RecordStatus.ACTIVE).filter(e->!excluded.contains(e.getId())).sorted(Comparator.comparing(Employee::getFullName,String.CASE_INSENSITIVE_ORDER)).map(e->new RequestLookupOption(e.getId(),e.getEmployeeNumber()+" - "+e.getFullName()+(e.getDepartment()==null?"":" - "+e.getDepartment().getName()))).toList();}
  private void complete(String taskId,String decision,String comment){Employee actor=currentEmployee();if(!taskService.isTaskAssignedTo(taskId,String.valueOf(actor.getId())))throw new IllegalStateException("Task is not assigned to current user.");Map<String,Object> vars=new HashMap<>();vars.put("approvalDecision",decision);vars.put("approvalComment",comment);vars.put("approvalActorId",actor.getId());vars.put("flowableTaskId",taskId);taskService.completeTask(taskId,vars);}
  private WorkflowRequest owned(Long id){WorkflowRequest r=requestRepository.findById(id).orElseThrow(()->new IllegalArgumentException("Request not found."));if(!r.getRequesterEmployeeId().equals(currentEmployee().getId()))throw new IllegalStateException("You do not own this request.");return r;}
+ private boolean isEditableStatus(WorkflowRequest request){return request.getStatus()==RequestStatus.DRAFT||request.getStatus()==RequestStatus.RETURNED_FOR_CORRECTION;}
+ private boolean wasFreeRoute(WorkflowRequest request){return request.getApprovalRouteType()==ApprovalRouteType.FREE_ROUTE;}
+ private boolean canSubmit(WorkflowRequest request,Long actorEmployeeId){if(!request.getRequesterEmployeeId().equals(actorEmployeeId))return false;if(request.getStatus()==RequestStatus.DRAFT)return true;if(request.getStatus()==RequestStatus.RETURNED_FOR_CORRECTION)return !wasFreeRoute(request);return false;}
+ private boolean canSendFreeRoute(WorkflowRequest request,Long actorEmployeeId){if(!request.getRequesterEmployeeId().equals(actorEmployeeId))return false;if(request.getStatus()==RequestStatus.DRAFT)return true;if(request.getStatus()==RequestStatus.RETURNED_FOR_CORRECTION)return wasFreeRoute(request);return false;}
+ private boolean canEdit(WorkflowRequest request,Long actorEmployeeId){return isEditableStatus(request)&&(canSubmit(request,actorEmployeeId)||canSendFreeRoute(request,actorEmployeeId));}
  private WorkflowRequestType type(RequestType type){WorkflowRequestType t=typeRepository.findByCode(type.name()).orElseThrow(()->new IllegalStateException("Request type is not configured: "+type));if(!t.isEnabled())throw new IllegalStateException("Request type is disabled.");return t;}
  private Employee requireSelectableFreeRouteEmployee(Long employeeId){Employee e=employeeRepository.findById(employeeId).orElseThrow(()->new IllegalArgumentException("Selected employee not found."));if(e.isRestrictedVisibility())throw new IllegalArgumentException("Selected employee is not available for selection.");if(e.getEmploymentStatus()!=EmploymentStatus.ACTIVE||e.getStatus()!=RecordStatus.ACTIVE)throw new IllegalArgumentException("Selected employee is not active.");return e;}
  private void saveItems(WorkflowRequest r,List<CreateWorkflowRequestCommand.Item> items){if(items==null)return;for(var p:items){WorkflowRequestItem i=new WorkflowRequestItem();i.setWorkflowRequestId(r.getId());if(r.getRequestType()==RequestType.ASSET_REQUEST){FamAssetDTO asset=famAssetLookupService.findRequestableAsset(p.getFamAssetId());i.setExternalSourceSystem("FAM");i.setExternalAssetId(asset.assetId());i.setExternalAssetCode(asset.assetCode());i.setItemName(asset.assetName());i.setCategory(asset.category());i.setUnitOfMeasure(asset.unitOfMeasure());i.setQuantity(p.getQuantity());}else{i.setItemName(p.getItemName());i.setDescription(p.getDescription());i.setCategory(p.getCategory());i.setQuantity(p.getQuantity());i.setUnitOfMeasure(p.getUnitOfMeasure());i.setEstimatedUnitCost(p.getEstimatedUnitCost());i.setEstimatedTotalCost(p.getEstimatedUnitCost()==null?null:p.getEstimatedUnitCost().multiply(p.getQuantity()));i.setCurrency(p.getCurrency()==null?null:p.getCurrency().toUpperCase(Locale.ROOT));i.setVendorName(p.getVendorName());i.setRemarks(p.getRemarks());}itemRepository.save(i);}}
@@ -67,4 +72,142 @@ public class WorkflowRequestService {
  public boolean isHrAdmin(){return auth.isHumanResource()||auth.isJobHR()||auth.isAdmin()||auth.isRestrictedHr();} private void requireHrAdmin(){if(!isHrAdmin())throw new IllegalStateException("HR or administrator access is required.");}
  private StaffRequisitionDetailView staffRequisitionDetail(Long id){return staffRepository.findByWorkflowRequestId(id).map(d->{String departmentName=departmentRepository.findById(d.getDepartmentId()).map(Department::getName).orElse(null);String jobGradeName=d.getJobGradeId()==null?null:jobGradeRepository.findById(d.getJobGradeId()).map(JobGrade::getName).orElse(null);String replacementName=d.getReplacementEmployeeId()==null?null:employeeRepository.findById(d.getReplacementEmployeeId()).map(Employee::getFullName).orElse(null);return new StaffRequisitionDetailView(d.getJobTitle(),departmentName,jobGradeName,d.getNumberOfPositions(),d.getEmploymentType()==null?null:d.getEmploymentType().getLabel(),d.getRequisitionReason()==null?null:d.getRequisitionReason().getLabel(),d.getTargetStartDate(),d.isBudgeted(),d.getEstimatedMonthlyCost(),d.getReasonForHire(),replacementName);}).orElse(null);}
  private ExpenseReimbursementDetailView expenseReimbursementDetail(Long id){return expenseRepository.findByWorkflowRequestId(id).map(d->{String claimant=employeeRepository.findById(d.getClaimantEmployeeId()).map(Employee::getFullName).orElse(null);String department=d.getDepartmentId()==null?null:departmentRepository.findById(d.getDepartmentId()).map(Department::getName).orElse(null);List<ExpenseReimbursementItemView> items=expenseItemRepository.findByWorkflowRequestIdOrderByExpenseDateAscIdAsc(id).stream().map(i->new ExpenseReimbursementItemView(i.getExpenseDate(),i.getExpenseCategory(),i.getExpenseCategory()==null?null:i.getExpenseCategory().getLabel(),i.getDescription(),i.getVendorName(),i.getAmount(),i.getCurrency(),i.getRemarks())).toList();return new ExpenseReimbursementDetailView(claimant,department,d.getExpenseStartDate(),d.getExpenseEndDate(),d.getBusinessPurpose(),d.getPaymentMethod(),d.getPaymentMethod()==null?null:d.getPaymentMethod().getLabel(),d.getCurrency(),d.getTotalClaimAmount(),items);}).orElse(null);}
+
+ @Transactional(readOnly = true)
+ public WorkflowRequestEditDTO editDetails(Long id) {
+  WorkflowRequest r = visible(id);
+  Long actorId = currentEmployee().getId();
+  boolean canSubmit = canSubmit(r, actorId);
+  boolean canSendFreeRoute = canSendFreeRoute(r, actorId);
+  boolean canEdit = canEdit(r, actorId);
+
+  CreateWorkflowRequestCommand.StaffRequisitionPayload staffPayload = null;
+  CreateWorkflowRequestCommand.FileRequestPayload filePayload = null;
+  CreateWorkflowRequestCommand.AssetRequestPayload assetPayload = null;
+  CreateWorkflowRequestCommand.ExpenseReimbursementPayload expensePayload = null;
+  List<CreateWorkflowRequestCommand.Item> items = List.of();
+
+  switch (r.getRequestType()) {
+   case STAFF_REQUISITION -> staffPayload = staffRepository.findByWorkflowRequestId(id).map(d -> {
+    CreateWorkflowRequestCommand.StaffRequisitionPayload p = new CreateWorkflowRequestCommand.StaffRequisitionPayload();
+    p.setJobTitle(d.getJobTitle());
+    p.setDepartmentId(d.getDepartmentId());
+    p.setJobGradeId(d.getJobGradeId());
+    p.setNumberOfPositions(d.getNumberOfPositions());
+    p.setEmploymentType(d.getEmploymentType());
+    p.setRequisitionReason(d.getRequisitionReason());
+    p.setTargetStartDate(d.getTargetStartDate());
+    p.setBudgeted(d.isBudgeted());
+    p.setEstimatedMonthlyCost(d.getEstimatedMonthlyCost());
+    p.setReasonForHire(d.getReasonForHire());
+    p.setReplacementEmployeeId(d.getReplacementEmployeeId());
+    return p;
+   }).orElse(null);
+   case FILE_REQUEST -> filePayload = fileRepository.findByWorkflowRequestId(id).map(d -> {
+    CreateWorkflowRequestCommand.FileRequestPayload p = new CreateWorkflowRequestCommand.FileRequestPayload();
+    p.setFileCategory(d.getFileCategory());
+    p.setConfidentialityLevel(d.getConfidentialityLevel());
+    p.setRequestedAccessType(d.getRequestedAccessType());
+    p.setRetentionRequired(d.isRetentionRequired());
+    p.setPurpose(d.getPurpose());
+    return p;
+   }).orElse(null);
+   case ASSET_REQUEST -> {
+    assetPayload = assetRepository.findByWorkflowRequestId(id).map(d -> {
+     CreateWorkflowRequestCommand.AssetRequestPayload p = new CreateWorkflowRequestCommand.AssetRequestPayload();
+     p.setCostCenter(d.getCostCenter());
+     p.setRequiredDate(d.getRequiredDate());
+     p.setBusinessJustification(d.getBusinessJustification());
+     return p;
+    }).orElse(null);
+    items = itemRepository.findByWorkflowRequestIdOrderById(id).stream().map(i -> {
+     CreateWorkflowRequestCommand.Item it = new CreateWorkflowRequestCommand.Item();
+     it.setFamAssetId(i.getExternalAssetId());
+     it.setItemName(i.getItemName());
+     it.setCategory(i.getCategory());
+     it.setUnitOfMeasure(i.getUnitOfMeasure());
+     it.setQuantity(i.getQuantity());
+     return it;
+    }).toList();
+   }
+   case EXPENSE_REIMBURSEMENT -> expensePayload = expenseRepository.findByWorkflowRequestId(id).map(d -> {
+    CreateWorkflowRequestCommand.ExpenseReimbursementPayload p = new CreateWorkflowRequestCommand.ExpenseReimbursementPayload();
+    p.setExpenseStartDate(d.getExpenseStartDate());
+    p.setExpenseEndDate(d.getExpenseEndDate());
+    p.setBusinessPurpose(d.getBusinessPurpose());
+    p.setPaymentMethod(d.getPaymentMethod());
+    p.setCurrency(d.getCurrency());
+    p.setExpenseItems(expenseItemRepository.findByWorkflowRequestIdOrderByExpenseDateAscIdAsc(id).stream().map(i -> {
+     CreateWorkflowRequestCommand.ExpenseItemPayload ip = new CreateWorkflowRequestCommand.ExpenseItemPayload();
+     ip.setExpenseCategory(i.getExpenseCategory());
+     ip.setExpenseDate(i.getExpenseDate());
+     ip.setDescription(i.getDescription());
+     ip.setVendorName(i.getVendorName());
+     ip.setAmount(i.getAmount());
+     ip.setRemarks(i.getRemarks());
+     return ip;
+    }).toList());
+    return p;
+   }).orElse(null);
+   case GENERAL_REQUEST -> { }
+  }
+
+  return WorkflowRequestEditDTO.builder()
+          .id(r.getId())
+          .requestNumber(r.getRequestNumber())
+          .requestType(r.getRequestType())
+          .title(r.getTitle())
+          .description(r.getDescription())
+          .priority(r.getPriority())
+          .departmentId(r.getDepartmentId())
+          .status(r.getStatus())
+          .approvalRouteType(r.getApprovalRouteType())
+          .submittedAt(r.getSubmittedAt())
+          .canEdit(canEdit)
+          .canSubmit(canSubmit)
+          .canSendFreeRoute(canSendFreeRoute)
+          .staffRequisition(staffPayload)
+          .fileRequest(filePayload)
+          .assetRequest(assetPayload)
+          .expenseReimbursement(expensePayload)
+          .items(items)
+          .build();
+ }
+
+ @Transactional
+ public WorkflowRequest updateEditableRequest(Long id, CreateWorkflowRequestCommand command) {
+  WorkflowRequest r = owned(id);
+  Employee actor = currentEmployee();
+  if (!canEdit(r, actor.getId())) {
+   throw new IllegalStateException("This request cannot be edited.");
+  }
+  if (command.getRequestType() != r.getRequestType()) {
+   throw new IllegalStateException("Request type cannot be changed while editing.");
+  }
+  handlers.get(r.getRequestType()).validate(command);
+
+  r.setTitle(command.getTitle().trim());
+  r.setDescription(command.getDescription());
+  r.setPriority(command.getPriority() == null ? RequestPriority.NORMAL : command.getPriority());
+
+  Long departmentId = command.getDepartmentId();
+  if (departmentId == null && r.getRequestType() == RequestType.STAFF_REQUISITION && command.getStaffRequisition() != null) {
+   departmentId = command.getStaffRequisition().getDepartmentId();
+  }
+  if (departmentId == null) {
+   departmentId = actor.getDepartment() == null ? null : actor.getDepartment().getId();
+  }
+  r.setDepartmentId(departmentId);
+
+  r = requestRepository.save(r);
+  handlers.get(r.getRequestType()).updateDetails(r, command);
+
+  if (r.getRequestType() == RequestType.ASSET_REQUEST) {
+   itemRepository.deleteByWorkflowRequestId(r.getId());
+   saveItems(r, command.getItems());
+  }
+
+  activityService.record(r.getId(), RequestActivityType.UPDATED, "Request updated", actor.getId());
+  return r;
+ }
 }

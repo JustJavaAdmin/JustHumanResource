@@ -189,6 +189,21 @@
         function fmt(value) { return (value || '').replaceAll('_', ' '); }
         function employeeName(id) { return id == null ? '-' : (employeeNames[id] || `Employee #${id}`); }
         function isOwner() { return detail && context && detail.request.requesterEmployeeId === context.employeeId; }
+        function wasFreeRoute() { return detail && detail.request && detail.request.approvalRouteType === 'FREE_ROUTE'; }
+        function canSubmitRequest() {
+            if (!isOwner()) return false;
+            const r = detail.request;
+            if (r.status === 'DRAFT') return true;
+            if (r.status === 'RETURNED_FOR_CORRECTION') return !wasFreeRoute();
+            return false;
+        }
+        function canSendFreeRouteRequest() {
+            if (!isOwner()) return false;
+            const r = detail.request;
+            if (r.status === 'DRAFT') return true;
+            if (r.status === 'RETURNED_FOR_CORRECTION') return wasFreeRoute();
+            return false;
+        }
         function canEditAttachments() { return isOwner() && ['DRAFT','SUBMITTED','RETURNED_FOR_CORRECTION'].includes(detail.request.status); }
         function canRemoveAttachments() { return isOwner() && ['DRAFT','RETURNED_FOR_CORRECTION'].includes(detail.request.status); }
 
@@ -486,8 +501,8 @@
             const r = detail.request;
             const task = tasks.find(t => t.variables && Number(t.variables.workflowRequestId) === requestId);
             const actions = [];
-            if (isOwner() && ['DRAFT','RETURNED_FOR_CORRECTION'].includes(r.status)) actions.push(`<button onclick="submitRequest()" class="request-primary-btn">Submit</button>`);
-            if (isOwner() && ['DRAFT','RETURNED_FOR_CORRECTION'].includes(r.status)) actions.push(`<button onclick="openFreeRouteModal('send')" class="request-secondary-btn">Send To</button>`);
+            if (canSubmitRequest()) actions.push(`<button onclick="submitRequest()" class="request-primary-btn">Submit</button>`);
+            if (canSendFreeRouteRequest()) actions.push(`<button onclick="openFreeRouteModal('send')" class="request-secondary-btn">Send To</button>`);
             if (isOwner() && !['APPROVED','REJECTED','CANCELLED','CLOSED'].includes(r.status)) actions.push(`<button onclick="cancelRequest()" class="request-danger-btn">Cancel</button>`);
             if (context.hrAdmin && r.status === 'APPROVED') actions.push(`<button onclick="closeRequest()" class="request-secondary-btn">Close</button>`);
             if (task) {

@@ -8,4 +8,5 @@ import java.util.List;
 public interface ExpenseReimbursementItemRepository extends JpaRepository<ExpenseReimbursementItem, Long> {
     List<ExpenseReimbursementItem> findByWorkflowRequestIdOrderByExpenseDateAscIdAsc(Long workflowRequestId);
     long countByWorkflowRequestId(Long workflowRequestId);
+    void deleteByWorkflowRequestId(Long workflowRequestId);
 }

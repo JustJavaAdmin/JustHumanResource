@@ -45,6 +45,8 @@ public class WorkflowRequestController {
  @GetMapping("/context") public java.util.Map<String,Object> context(){return service.context();}
  @GetMapping("/employees/names") public Map<Long,String> employeeNames(@RequestParam List<Long> ids){Set<Long> idSet=new HashSet<>(ids);return employeeRepository.findAllVisible().stream().filter(e->idSet.contains(e.getId())).collect(Collectors.toMap(Employee::getId,Employee::getFullName));}
  @GetMapping("/{id}") public WorkflowRequestDetailDTO details(@PathVariable Long id){return service.details(id);}
+ @GetMapping("/{id}/edit") public WorkflowRequestEditDTO editDetails(@PathVariable Long id){return service.editDetails(id);}
+ @PutMapping("/{id}") public WorkflowRequest update(@PathVariable Long id,@Valid @RequestBody CreateWorkflowRequestCommand command){return service.updateEditableRequest(id,command);}
  @GetMapping("/types") public List<WorkflowRequestType> requestTypes(){return types.findByEnabledTrueOrderByName();}
  @GetMapping("/types/{code}") public WorkflowRequestType requestType(@PathVariable String code){return types.findByCode(code.toUpperCase()).orElseThrow(()->new IllegalArgumentException("Request type not found."));}
  @GetMapping("/staff-requisition-options") public StaffRequisitionOptions staffRequisitionOptions(){return new StaffRequisitionOptions(departmentOptions(),jobGradeOptions(),employeeOptions(),employmentTypeOptions(),requisitionReasonOptions());}

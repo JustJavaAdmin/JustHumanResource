@@ -45,9 +45,26 @@ public class AssetRequestHandler implements WorkflowRequestTypeHandler {
         var payload = command.getAssetRequest();
         AssetRequestDetail detail = new AssetRequestDetail();
         detail.setWorkflowRequestId(request.getId());
+        applyPayload(detail, payload);
+        repository.save(detail);
+    }
+
+    public void updateDetails(WorkflowRequest request, CreateWorkflowRequestCommand command) {
+        var payload = command.getAssetRequest();
+        AssetRequestDetail detail = repository.findByWorkflowRequestId(request.getId())
+                .orElseGet(AssetRequestDetail::new);
+        if (detail.getWorkflowRequestId() == null) {
+            detail.setWorkflowRequestId(request.getId());
+        }
+        applyPayload(detail, payload);
+        repository.save(detail);
+        // Asset line rows live in workflow_request_items and are replaced by
+        // WorkflowRequestService, not here.
+    }
+
+    private void applyPayload(AssetRequestDetail detail, CreateWorkflowRequestCommand.AssetRequestPayload payload) {
         detail.setCostCenter(payload.getCostCenter());
         detail.setRequiredDate(payload.getRequiredDate());
         detail.setBusinessJustification(payload.getBusinessJustification());
-        repository.save(detail);
     }
 }
