@@ -39,10 +39,14 @@ public class PaySlipPdfService {
             renderer.text("Pay Date: " + date(paySlip.getPayDate()));
             renderer.text("Payroll Period: " + period(paySlip.getPayDate()));
             renderer.text("Pension Scheme: " + value(paySlip.getAppliedPensionSchemeName()));
-            renderer.text("Employee Pension: " + money(paySlip.getPensionAmount())
-                    + ", Employer Pension: " + money(paySlip.getEmployerPensionAmount()));
             renderer.text("Bank: " + bank(paySlip));
             renderer.gap(10);
+
+            renderer.section("Pension Contributions");
+            renderer.tableHeader("Description", "Amount");
+            renderer.tableRow("Employee Pension", money(paySlip.getPensionAmount()));
+            renderer.tableRow("Employer Pension", money(paySlip.getEmployerPensionAmount()));
+            renderer.gap(8);
 
             renderer.section("Allowances");
             renderer.tableHeader("Description", "Amount");
