@@ -820,6 +820,8 @@
                     </div>
                 </div>
 
+                <p style="font-size:0.75rem;color:#6b788b;margin:-0.5rem 0 1rem;">Employee Pension: ₦<span th:text="${#numbers.formatDecimal(ps.pensionAmount, 0, 'COMMA', 2, 'POINT')}">0.00</span>, Employer Pension: ₦<span th:text="${#numbers.formatDecimal(ps.employerPensionAmount, 0, 'COMMA', 2, 'POINT')}">0.00</span></p>
+
                 <!-- Allowances Section -->
                 <div style="margin-bottom:1rem;">
                     <h5 style="font-size:0.72rem;font-weight:600;color:#5f6c80;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.5rem;">Allowances</h5>
@@ -970,6 +972,8 @@
                                 <p style="margin:0;" th:text="${paySlip.appliedPensionSchemeName}">—</p>
                             </div>
                         </div>
+
+                        <p style="font-size:0.75rem;color:#6b788b;margin:-0.5rem 0 1rem;">Employee Pension: ₦<span th:text="${#numbers.formatDecimal(paySlip.pensionAmount, 0, 'COMMA', 2, 'POINT')}">0.00</span>, Employer Pension: ₦<span th:text="${#numbers.formatDecimal(paySlip.employerPensionAmount, 0, 'COMMA', 2, 'POINT')}">0.00</span></p>
 
                         <!-- Allowances Section -->
                         <div style="margin-bottom:1rem;">
