@@ -199,7 +199,7 @@ public class PayrollController {
             @RequestParam Map<String, String> allParams,
             RedirectAttributes redirectAttributes) {
 
-        // Soft-delete allowances that were unchecked (not in the submitted list)
+
         List<Long> submittedIds = allowanceIds != null ? allowanceIds : List.of();
         payrollSetupService.deactivateRemovedAllowancesFromPayGroup(payGroupId, submittedIds);
 
