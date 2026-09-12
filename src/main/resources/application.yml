@@ -103,11 +103,6 @@ app:
   kpi:
     max-kpi-weight: ${MAX_KPI_WEIGHT:1.0}
 
-payroll:
-  kpi-backfill:
-    enabled: true
-    dry-run: false
-
 
 fam:
   api:
