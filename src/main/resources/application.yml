@@ -106,7 +106,7 @@ app:
 payroll:
   kpi-backfill:
     enabled: true
-    dry-run: true
+    dry-run: false
 
 
 fam:
