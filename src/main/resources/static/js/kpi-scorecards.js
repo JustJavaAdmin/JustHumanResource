@@ -15,6 +15,17 @@ const kpiDefinitions = window.kpiScorecardData?.kpiDefinitions || [];
             if (activeButton) activeButton.classList.add('active');
         }
 
+        function setInlineError(id, message) {
+            const element = document.getElementById(id);
+            if (!element) return;
+            element.textContent = message || '';
+            element.classList.toggle('hidden', !message);
+        }
+
+        function setApplyError(message) {
+            setInlineError('applyTemplateError', message);
+        }
+
         function addDesignerRow(role) {
             const keyPrefix = role.toLowerCase();
             designerRows.push({
@@ -95,14 +106,17 @@ const kpiDefinitions = window.kpiScorecardData?.kpiDefinitions || [];
                         <select class="table-select" onchange="updateDesignerRow('${row.clientKey}', 'kpiId', this.value)">
                             ${kpiOptions(row.kpiId)}
                         </select>
+                        <p data-row-error="${row.clientKey}:kpiId" class="mt-1 hidden text-xs font-medium text-red-600"></p>
                     </td>
                     <td class="px-3 py-2">
                         <select class="table-select" ${row.role === 'PERSPECTIVE' ? 'disabled' : ''} onchange="updateDesignerRow('${row.clientKey}', 'parentClientKey', this.value)">
                             ${parentOptions(row)}
                         </select>
+                        <p data-row-error="${row.clientKey}:parentClientKey" class="mt-1 hidden text-xs font-medium text-red-600"></p>
                     </td>
                     <td class="px-3 py-2">
                         <input type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${row.weight}" class="table-input" oninput="updateDesignerWeight('${row.clientKey}', this)" onchange="updateDesignerWeight('${row.clientKey}', this)">
+                        <p data-row-error="${row.clientKey}:weight" class="mt-1 hidden text-xs font-medium text-red-600"></p>
                     </td>
                     <td class="px-3 py-2">
                         <select class="table-select" onchange="updateDesignerRow('${row.clientKey}', 'frequency', this.value)">
@@ -168,26 +182,44 @@ const kpiDefinitions = window.kpiScorecardData?.kpiDefinitions || [];
         }
 
         function renderDesignerValidation() {
-            const errors = validateDesigner();
+            const result = validateDesignerDetailed();
+            const errors = result.errors;
             const list = document.getElementById('designerValidation');
             if (errors.length === 0) {
                 list.innerHTML = '<li class="text-emerald-700">Template is ready to save.</li>';
             } else {
                 list.innerHTML = errors.map(error => `<li class="text-red-700">${escapeHtml(error)}</li>`).join('');
             }
+            renderInlineDesignerErrors(result);
         }
 
         function validateDesigner() {
+            return validateDesignerDetailed().errors;
+        }
+
+        function validateDesignerDetailed() {
             const errors = [];
+            const fields = {};
+            const rows = {};
             if (!document.getElementById('templateName').value.trim()) errors.push('Template name is required.');
+            if (!document.getElementById('templateName').value.trim()) fields.templateNameError = 'Template name is required.';
             if (designerRows.length === 0) errors.push('At least one scorecard row is required.');
             const selected = new Set();
             designerRows.forEach(row => {
-                if (!row.kpiId) errors.push(`${row.clientKey}: KPI definition is required.`);
+                if (!row.kpiId) {
+                    errors.push(`${row.clientKey}: KPI definition is required.`);
+                    rows[`${row.clientKey}:kpiId`] = 'Select a KPI definition.';
+                }
                 if (row.kpiId && selected.has(String(row.kpiId))) errors.push(`${rowLabel(row)} is selected more than once.`);
                 if (row.kpiId) selected.add(String(row.kpiId));
-                if (row.role !== 'PERSPECTIVE' && !row.parentClientKey) errors.push(`${rowLabel(row)} requires a parent.`);
-                if (numeric(row.weight) <= 0) errors.push(`${rowLabel(row)} requires a positive weight.`);
+                if (row.role !== 'PERSPECTIVE' && !row.parentClientKey) {
+                    errors.push(`${rowLabel(row)} requires a parent.`);
+                    rows[`${row.clientKey}:parentClientKey`] = 'Select a parent row.';
+                }
+                if (numeric(row.weight) <= 0) {
+                    errors.push(`${rowLabel(row)} requires a positive weight.`);
+                    rows[`${row.clientKey}:weight`] = 'Enter a positive weight.';
+                }
             });
             const roots = designerRows.filter(row => !row.parentClientKey).reduce((sum, row) => sum + numeric(row.weight), 0);
             if (Math.abs(roots - 1) > 0.001) errors.push(`Root perspective weights must total 1.00. Current total is ${roots.toFixed(2)}.`);
@@ -197,10 +229,21 @@ const kpiDefinitions = window.kpiScorecardData?.kpiDefinitions || [];
                     const childTotal = children.reduce((sum, row) => sum + numeric(row.weight), 0);
                     if (Math.abs(childTotal - numeric(parent.weight)) > 0.001) {
                         errors.push(`Children under ${rowLabel(parent)} must total ${numeric(parent.weight).toFixed(2)}. Current total is ${childTotal.toFixed(2)}.`);
+                        rows[`${parent.clientKey}:weight`] = `Children total ${childTotal.toFixed(2)}; parent is ${numeric(parent.weight).toFixed(2)}.`;
                     }
                 }
             });
-            return errors;
+            return { errors, fields, rows };
+        }
+
+        function renderInlineDesignerErrors(result) {
+            ['templateNameError', 'templateRoleError', 'templateRubricError'].forEach(id => setInlineError(id, result.fields[id]));
+            document.querySelectorAll('[data-row-error]').forEach(element => {
+                const key = element.getAttribute('data-row-error');
+                const message = result.rows[key] || '';
+                element.textContent = message;
+                element.classList.toggle('hidden', !message);
+            });
         }
 
         function resetDesigner() {
@@ -265,7 +308,9 @@ const kpiDefinitions = window.kpiScorecardData?.kpiDefinitions || [];
         }
 
         async function saveDesignedTemplate(publish) {
-            const errors = validateDesigner();
+            const validation = validateDesignerDetailed();
+            renderInlineDesignerErrors(validation);
+            const errors = validation.errors;
             const blockingErrors = publish ? errors : errors.filter(error => error === 'Template name is required.');
             if (blockingErrors.length > 0) {
                 showDesignerAlert(blockingErrors[0], false);
@@ -390,9 +435,10 @@ const kpiDefinitions = window.kpiScorecardData?.kpiDefinitions || [];
         async function previewTemplateApply() {
             const payload = applyPayload();
             if (!payload.templateId) {
-                showDesignerAlert('Select a template before previewing apply.', false);
+                setApplyError('Select a template before previewing apply.');
                 return;
             }
+            setApplyError('');
             const response = await fetch('/api/kpi/scorecards/templates/apply-preview', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -424,6 +470,11 @@ const kpiDefinitions = window.kpiScorecardData?.kpiDefinitions || [];
             const form = document.getElementById('importPreviewForm');
             const data = new FormData(form);
             const panel = document.getElementById('importPreview');
+            setInlineError('importFileError', '');
+            if (!data.get('file') || !data.get('file').name) {
+                setInlineError('importFileError', 'Select an Excel workbook before previewing import.');
+                return;
+            }
             panel.classList.remove('hidden');
             panel.innerHTML = '<p class="text-gray-500">Parsing workbook...</p>';
             const response = await fetch('/api/kpi/scorecards/templates/import/preview', {
@@ -549,11 +600,11 @@ const kpiDefinitions = window.kpiScorecardData?.kpiDefinitions || [];
 
         async function confirmImport() {
             if (!currentImportPreview) {
-                showDesignerAlert('Preview an import before confirming.', false);
+                setInlineError('importFileError', 'Preview an import before confirming.');
                 return;
             }
             if (currentImportPreview.errors && currentImportPreview.errors.length) {
-                showDesignerAlert('Resolve import preview errors before confirming.', false);
+                setInlineError('importFileError', 'Resolve import preview errors before confirming.');
                 return;
             }
             const response = await fetch('/api/kpi/scorecards/templates/import/confirm', {
