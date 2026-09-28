@@ -730,8 +730,6 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Code</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Hierarchy</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Target Value</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unit</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Impacts Salary</th>
@@ -772,32 +770,6 @@
                                   class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
                                 Standalone
                             </span>
-                        </td>
-
-                        <!-- Category Badge -->
-                        <td class="px-6 py-4 whitespace-nowrap">
-            <span th:text="${kpi.category}"
-                  class="px-2 py-1 text-xs rounded-full"
-                  th:classappend="${kpi.category == 'PRODUCTIVITY' ? ' bg-blue-100 text-blue-800' :
-                                  (kpi.category == 'ATTENDANCE' ? ' bg-green-100 text-green-800' :
-                                  (kpi.category == 'QUALITY' ? ' bg-purple-100 text-purple-800' :
-                                  ' bg-gray-100 text-gray-800'))}">
-                Productivity
-            </span>
-                        </td>
-
-                        <!-- Target Value with Unit Symbol -->
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <th:block th:switch="${kpi.unit}">
-                <span th:case="'PERCENTAGE'"
-                      th:text="${kpi.targetValue} + ' %'">100 %</span>
-                                <span th:case="'HOURS'"
-                                      th:text="${kpi.targetValue} + ' h'">40 h</span>
-                                <span th:case="'NUMBER'"
-                                      th:text="${kpi.targetValue}">4.5</span>
-                                <span th:case="*"
-                                      th:text="${kpi.targetValue ?: '--'}">--</span>
-                            </th:block>
                         </td>
 
                         <!-- Unit (Full Display Name) -->
@@ -854,7 +826,7 @@
 
                     <!-- Empty State -->
                     <tr th:if="${kpiDefinitions == null or #lists.isEmpty(kpiDefinitions)}">
-                        <td colspan="9"
+                        <td colspan="7"
                             class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                             No KPI definitions found.
                         </td>
@@ -1161,6 +1133,8 @@
             </div>
             <form id="kpiDefinitionForm" th:action="@{/kpi/definition}" method="post" onsubmit="disableSubmitButton(this)" class="p-6 space-y-4">
                 <input type="hidden" id="kpiId" name="id">
+                <input type="hidden" id="kpiCategory" name="category" value="PRODUCTIVITY">
+                <input type="hidden" id="kpiTarget" name="targetValue" value="100">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Code *</label>
@@ -1194,22 +1168,7 @@
                         Use parent KPIs to group related child KPIs. Weights are assigned later per employee, job step, or department.
                     </p>
                 </div>
-                <div class="grid grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category *</label>
-                        <select name="category" id="kpiCategory" required
-                                class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none">
-                            <option value="">Select Category</option>
-                            <option value="PRODUCTIVITY">Productivity</option>
-                            <option value="ATTENDANCE">Attendance</option>
-                            <option value="QUALITY">Quality</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Value *</label>
-                        <input name="targetValue" type="number" step="0.01" id="kpiTarget" required
-                               class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none">
-                    </div>
+                <div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Unit *</label>
                         <select name="unit" id="kpiUnit" required
@@ -1219,6 +1178,9 @@
                             <option value="NUMBER">Number</option>
                             <option value="HOURS">Hours</option>
                         </select>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Category and target value are defaulted for scorecard setup.
+                        </p>
                     </div>
                 </div>
 
@@ -1587,6 +1549,9 @@
             document.getElementById('kpiDefinitionForm').reset();
             document.getElementById('kpiId').value = '';
             document.getElementById('kpiCode').value = generateRandomKpiCode();
+            document.getElementById('kpiCategory').value = 'PRODUCTIVITY';
+            document.getElementById('kpiTarget').value = '100';
+            document.getElementById('kpiUnit').value = 'PERCENTAGE';
             refreshParentKpiOptions(null);
             document.getElementById('kpiParent').value = '';
         }
@@ -1599,9 +1564,9 @@
             document.getElementById('kpiCode').value = kpi.code;
             document.getElementById('kpiName').value = kpi.name;
             document.getElementById('kpiDescription').value = kpi.description;
-            document.getElementById('kpiCategory').value = kpi.category;
-            document.getElementById('kpiTarget').value = kpi.targetValue;
-            document.getElementById('kpiUnit').value = kpi.unit;
+            document.getElementById('kpiCategory').value = kpi.category || 'PRODUCTIVITY';
+            document.getElementById('kpiTarget').value = kpi.targetValue || '100';
+            document.getElementById('kpiUnit').value = kpi.unit || 'PERCENTAGE';
             refreshParentKpiOptions(kpi.id);
             document.getElementById('kpiParent').value = kpi.parentDefinitionId || '';
             document.getElementById('kpiImpactSalary').checked = !!kpi.impactSalary;
