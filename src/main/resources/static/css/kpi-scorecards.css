@@ -133,3 +133,25 @@ input[type="checkbox"] {
     border-radius: 4px;
     cursor: pointer;
 }
+
+/* ---------------------------------------------------------------- */
+/* Role dropdown in the Template Builder (coloured like the old chips) */
+/* ---------------------------------------------------------------- */
+.table-select.role-select {
+    flex: 1 1 auto;
+    min-width: 150px;
+    font-weight: 700;
+    padding-right: 28px;
+    text-overflow: clip;
+}
+.table-select.role-perspective { background-color: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+.table-select.role-objective   { background-color: #f1f5f9; color: #1e293b; border-color: #94a3b8; }
+.table-select.role-indicator   { background-color: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+
+.dark .table-select.role-perspective { background-color: rgba(59, 130, 246, 0.25); color: #bfdbfe; border-color: #3b82f6; }
+.dark .table-select.role-objective   { background-color: rgba(148, 163, 184, 0.25); color: #e2e8f0; border-color: #64748b; }
+.dark .table-select.role-indicator   { background-color: rgba(16, 185, 129, 0.25); color: #a7f3d0; border-color: #10b981; }
+
+/* Keep the dropdown list itself readable */
+.table-select.role-select option { background: #ffffff; color: #111827; font-weight: 500; }
+.dark .table-select.role-select option { background: #0f172a; color: #f1f5f9; }

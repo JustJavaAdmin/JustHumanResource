@@ -26,16 +26,42 @@ const kpiDefinitions = window.kpiScorecardData?.kpiDefinitions || [];
             setInlineError('applyTemplateError', message);
         }
 
-        function addDesignerRow(role) {
-            const keyPrefix = role.toLowerCase();
+        function addDesignerRow(role = '') {
+            const keyPrefix = role ? role.toLowerCase() : 'row';
             designerRows.push({
                 clientKey: `${keyPrefix}_${++rowCounter}`,
                 role,
                 kpiId: '',
                 parentClientKey: '',
-                weight: role === 'PERSPECTIVE' ? '' : '0.00',
+                weight: role && role !== 'PERSPECTIVE' ? '0.00' : '',
                 frequency: '',
                 mandatory: true
+            });
+            renderDesigner();
+        }
+
+        // Is `parent` a valid parent for a row of `childRole`?
+        function parentAllowed(childRole, parent) {
+            if (!parent) return false;
+            if (childRole === 'OBJECTIVE') return parent.role === 'PERSPECTIVE';
+            if (childRole === 'INDICATOR') return parent.role === 'OBJECTIVE' || parent.role === 'PERSPECTIVE';
+            return false;
+        }
+
+        // Called when the Role dropdown of a row changes
+        function changeDesignerRole(clientKey, role) {
+            const row = designerRows.find(item => item.clientKey === clientKey);
+            if (!row) return;
+            row.role = role;
+            if (role && role !== 'PERSPECTIVE' && !String(row.weight).trim()) row.weight = '0.00';
+            // Drop this row's parent if it is no longer valid for the new role
+            const currentParent = designerRows.find(item => item.clientKey === row.parentClientKey);
+            if (!parentAllowed(role, currentParent)) row.parentClientKey = '';
+            // Detach children that would no longer be valid under the new role
+            designerRows.forEach(child => {
+                if (child.parentClientKey === clientKey && !parentAllowed(child.role, row)) {
+                    child.parentClientKey = '';
+                }
             });
             renderDesigner();
         }
@@ -81,13 +107,10 @@ const kpiDefinitions = window.kpiScorecardData?.kpiDefinitions || [];
         }
 
         function parentOptions(row) {
-            const allowed = designerRows.filter(candidate => {
-                if (candidate.clientKey === row.clientKey) return false;
-                if (row.role === 'OBJECTIVE') return candidate.role === 'PERSPECTIVE';
-                if (row.role === 'INDICATOR') return candidate.role === 'OBJECTIVE' || candidate.role === 'PERSPECTIVE';
-                return false;
-            });
-            return `<option value="">${row.role === 'PERSPECTIVE' ? 'Root' : 'Select parent'}</option>` +
+            const allowed = designerRows.filter(candidate =>
+                candidate.clientKey !== row.clientKey && parentAllowed(row.role, candidate));
+            const placeholder = !row.role ? 'Select role first' : (row.role === 'PERSPECTIVE' ? 'Root' : 'Select parent');
+            return `<option value="">${placeholder}</option>` +
                 allowed.map(candidate => `<option value="${candidate.clientKey}" ${row.parentClientKey === candidate.clientKey ? 'selected' : ''}>${escapeHtml(rowLabel(candidate))}</option>`).join('');
         }
 
@@ -99,33 +122,46 @@ const kpiDefinitions = window.kpiScorecardData?.kpiDefinitions || [];
 
         function renderDesigner() {
             const tbody = document.getElementById('designerRows');
-            tbody.innerHTML = designerRows.map(row => `
+            tbody.innerHTML = designerRows.map(row => {
+                const locked = !row.role ? 'disabled' : '';
+                return `
                 <tr>
-                    <td class="px-3 py-2"><div class="flex items-center gap-2">${roleBadge(row.role)} <span data-badge-for="${row.clientKey}">${validationBadge(row)}</span></div></td>
                     <td class="px-3 py-2">
-                        <select class="table-select" onchange="updateDesignerRow('${row.clientKey}', 'kpiId', this.value)">
+                        <div class="flex items-center gap-2">
+                            <select class="table-select role-select ${row.role ? 'role-' + row.role.toLowerCase() : ''}" onchange="changeDesignerRole('${row.clientKey}', this.value)">
+                                <option value="">Select role</option>
+                                <option value="PERSPECTIVE" ${row.role === 'PERSPECTIVE' ? 'selected' : ''}>Perspective</option>
+                                <option value="OBJECTIVE" ${row.role === 'OBJECTIVE' ? 'selected' : ''}>Objective</option>
+                                <option value="INDICATOR" ${row.role === 'INDICATOR' ? 'selected' : ''}>Indicator</option>
+                            </select>
+                            <span data-badge-for="${row.clientKey}">${validationBadge(row)}</span>
+                        </div>
+                        <p data-row-error="${row.clientKey}:role" class="mt-1 hidden text-xs font-medium text-red-600"></p>
+                    </td>
+                    <td class="px-3 py-2">
+                        <select class="table-select" ${locked} onchange="updateDesignerRow('${row.clientKey}', 'kpiId', this.value)">
                             ${kpiOptions(row.kpiId)}
                         </select>
                         <p data-row-error="${row.clientKey}:kpiId" class="mt-1 hidden text-xs font-medium text-red-600"></p>
                     </td>
                     <td class="px-3 py-2">
-                        <select class="table-select" ${row.role === 'PERSPECTIVE' ? 'disabled' : ''} onchange="updateDesignerRow('${row.clientKey}', 'parentClientKey', this.value)">
+                        <select class="table-select" ${(row.role === 'PERSPECTIVE' || !row.role) ? 'disabled' : ''} onchange="updateDesignerRow('${row.clientKey}', 'parentClientKey', this.value)">
                             ${parentOptions(row)}
                         </select>
                         <p data-row-error="${row.clientKey}:parentClientKey" class="mt-1 hidden text-xs font-medium text-red-600"></p>
                     </td>
                     <td class="px-3 py-2">
-                        <input type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${row.weight}" class="table-input" oninput="updateDesignerWeight('${row.clientKey}', this)" onchange="updateDesignerWeight('${row.clientKey}', this)">
+                        <input type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${row.weight}" ${locked} class="table-input" oninput="updateDesignerWeight('${row.clientKey}', this)" onchange="updateDesignerWeight('${row.clientKey}', this)">
                         <p data-row-error="${row.clientKey}:weight" class="mt-1 hidden text-xs font-medium text-red-600"></p>
                     </td>
                     <td class="px-3 py-2">
-                        <select class="table-select" onchange="updateDesignerRow('${row.clientKey}', 'frequency', this.value)">
+                        <select class="table-select" ${locked} onchange="updateDesignerRow('${row.clientKey}', 'frequency', this.value)">
                             <option value="">None</option>
                             ${frequencies.map(freq => `<option value="${freq}" ${row.frequency === freq ? 'selected' : ''}>${freq.replaceAll('_', ' ')}</option>`).join('')}
                         </select>
                     </td>
                     <td class="px-3 py-2 text-center">
-                        <input type="checkbox" ${row.mandatory ? 'checked' : ''} onchange="updateDesignerRow('${row.clientKey}', 'mandatory', this.checked)">
+                        <input type="checkbox" ${locked} ${row.mandatory ? 'checked' : ''} onchange="updateDesignerRow('${row.clientKey}', 'mandatory', this.checked)">
                     </td>
                     <td class="px-3 py-2">
                         <div class="flex gap-1">
@@ -135,7 +171,8 @@ const kpiDefinitions = window.kpiScorecardData?.kpiDefinitions || [];
                         </div>
                     </td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
 
             renderDesignerSummary();
             renderDesignerTree();
@@ -205,7 +242,12 @@ const kpiDefinitions = window.kpiScorecardData?.kpiDefinitions || [];
             if (!document.getElementById('templateName').value.trim()) fields.templateNameError = 'Template name is required.';
             if (designerRows.length === 0) errors.push('At least one scorecard row is required.');
             const selected = new Set();
-            designerRows.forEach(row => {
+            designerRows.forEach((row, index) => {
+                if (!row.role) {
+                    errors.push(`Row ${index + 1}: select a role (Perspective, Objective or Indicator).`);
+                    rows[`${row.clientKey}:role`] = 'Select a role.';
+                    return;
+                }
                 if (!row.kpiId) {
                     errors.push(`${row.clientKey}: KPI definition is required.`);
                     rows[`${row.clientKey}:kpiId`] = 'Select a KPI definition.';
@@ -747,11 +789,11 @@ const kpiDefinitions = window.kpiScorecardData?.kpiDefinitions || [];
                 OBJECTIVE: 'bg-slate-100 text-slate-800',
                 INDICATOR: 'bg-emerald-100 text-emerald-800'
             };
-            return `<span class="row-chip ${classes[role] || 'bg-gray-100 text-gray-800'}">${role}</span>`;
+            return `<span class="row-chip ${classes[role] || 'bg-gray-100 text-gray-800'}">${role || 'NO ROLE'}</span>`;
         }
 
         function validationBadge(row) {
-            const ok = row.kpiId && numeric(row.weight) > 0 && (row.role === 'PERSPECTIVE' || row.parentClientKey);
+            const ok = row.role && row.kpiId && numeric(row.weight) > 0 && (row.role === 'PERSPECTIVE' || row.parentClientKey);
             return `<span class="rounded-full px-2 py-0.5 text-[10px] font-bold ${ok ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">${ok ? 'OK' : 'Check'}</span>`;
         }
 
