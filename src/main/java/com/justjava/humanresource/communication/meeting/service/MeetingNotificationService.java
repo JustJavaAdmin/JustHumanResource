@@ -80,12 +80,16 @@ public class MeetingNotificationService {
             markEmailFailure(participant, errors, "Participant has no email address");
             return;
         }
+        // Schedule the email for background delivery. Schedule success is considered "notified" for
+        // the purposes of the meeting creation flow so the request does not fail due to transient
+        // email delivery problems. Actual delivery will be attempted asynchronously and retried.
         try {
-            emailService.sendInvite(meeting, participant);
+            String deliveryId = emailService.sendInvite(meeting, participant);
             participant.setEmailNotified(true);
             participant.setEmailNotifiedAt(LocalDateTime.now());
-            participant.setEmailStatus("SENT");
+            participant.setEmailStatus(deliveryId == null ? "SCHEDULED" : "SCHEDULED");
         } catch (RuntimeException ex) {
+            // In case the scheduling itself fails (should be rare), record failure but don't throw
             markEmailFailure(participant, errors, ex.getMessage());
         }
     }
