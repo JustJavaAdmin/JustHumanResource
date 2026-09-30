@@ -51,7 +51,7 @@ public class HrMeetingService {
         requireHrOrAdmin();
         List<HrMeeting> meetings = meetingRepository.findByStatusAndEndTimeAfterOrderByStartTimeAsc(
                 HrMeetingStatus.SCHEDULED,
-                LocalDateTime.now()
+                LocalDateTime.now(ZoneId.of(properties.getDefaults().getTimezone()))
         );
         Map<Long, List<HrMeetingParticipant>> participantsByMeetingId = participantRepository
                 .findByMeeting_IdInOrderByEmployeeNameAsc(meetings.stream().map(HrMeeting::getId).toList())
@@ -73,10 +73,11 @@ public class HrMeetingService {
     @Transactional(readOnly = true)
     public List<HrMeetingResponse> listCurrentEmployeeMeetings() {
         Employee employee = currentEmployee();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of(properties.getDefaults().getTimezone()));
         return participantRepository.findByEmployee_IdOrderByMeeting_StartTimeDesc(employee.getId()).stream()
                 .map(HrMeetingParticipant::getMeeting)
                 .filter(meeting -> meeting.getStatus() == HrMeetingStatus.SCHEDULED)
-                .filter(meeting -> meeting.getEndTime() != null && meeting.getEndTime().isAfter(LocalDateTime.now()))
+                .filter(meeting -> meeting.getEndTime() != null && meeting.getEndTime().isAfter(now))
                 .distinct()
                 .map(meeting -> toResponse(meeting, participantRepository.findByMeeting_IdOrderByEmployeeNameAsc(meeting.getId()), false))
                 .toList();
@@ -194,7 +195,7 @@ public class HrMeetingService {
 
     private LocalDateTime resolveStart(CreateHrMeetingCommand command) {
         if (command.instantMeeting()) {
-            return LocalDateTime.now();
+            return LocalDateTime.now(ZoneId.of(properties.getDefaults().getTimezone()));
         }
         if (command.startTime() == null) {
             throw new IllegalArgumentException("Meeting start time is required");
