@@ -10,7 +10,9 @@ import com.justjava.humanresource.core.config.AuthenticationManager; import com.
  public boolean canCreateFor(Long employeeId,Employee actor){return employeeId.equals(actor.getId())||isHr();}
  public boolean canSubmit(EmployeeExitCase x,Employee actor){return x.getEmployeeId().equals(actor.getId())||isHr();}
  public boolean canApprove(EmployeeExitCase x,Task task,Employee actor){return "exitApproval".equals(task.getTaskDefinitionKey())&&String.valueOf(actor.getId()).equals(task.getAssignee());}
- public boolean canCompleteClearance(ClearanceType t,Employee actor){return auth.isAdmin()||switch(t){case MANAGER_HANDOVER->group("departmentHead");case ASSET_AND_FACILITIES->group("assetManager");case IT_AND_SECURITY->auth.isAdmin();case HR_AND_LEGAL->auth.isHumanResource()||auth.isJobHR()||auth.isRestrictedHr();case PAYROLL_AND_FINANCE->auth.isFinancialOfficer();};}
+ // HR gets the same all-clearance-types access as admin (isHr() already includes isAdmin()).
+ // Department head/asset manager/finance remain scoped to their one clearance type as before.
+ public boolean canCompleteClearance(ClearanceType t,Employee actor){return isHr()||switch(t){case MANAGER_HANDOVER->group("departmentHead");case ASSET_AND_FACILITIES->group("assetManager");case IT_AND_SECURITY->auth.isAdmin();case HR_AND_LEGAL->auth.isHumanResource()||auth.isJobHR()||auth.isRestrictedHr();case PAYROLL_AND_FINANCE->auth.isFinancialOfficer();};}
  public boolean canUploadDocument(EmployeeExitCase x,Employee actor,ExitDocumentVisibility visibility){return isHr()||x.getEmployeeId().equals(actor.getId())&&visibility!=ExitDocumentVisibility.HR_ONLY;}
  public boolean canViewDocument(EmployeeExitCase x,EmployeeExitDocument d,Employee actor){if(isHr())return true;if(d.getVisibility()==ExitDocumentVisibility.HR_ONLY)return false;if(d.getVisibility()==ExitDocumentVisibility.FINANCE_AND_HR)return auth.isFinancialOfficer();return x.getEmployeeId().equals(actor.getId())||auth.isFinancialOfficer();}
  public boolean canDeleteDocument(EmployeeExitCase x,EmployeeExitDocument d,Employee actor){return isHr();}
@@ -26,7 +28,7 @@ import com.justjava.humanresource.core.config.AuthenticationManager; import com.
 
  public boolean canManageExitCase(Employee actor){return isHr();}
  public boolean canViewSettlementSection(Employee actor){return isHr()||auth.isFinancialOfficer();}
- public boolean canUseSettlementActions(Employee actor){return canManageSettlement();}
+ public boolean canUseSettlementActions(Employee actor){return isHr()||canManageSettlement();}
  public boolean canViewAssetSection(Employee actor){return isHr()||group("assetManager")||auth.isFinancialOfficer();}
  public boolean canUseAssetActions(Employee actor){return canManageAssets();}
  public boolean canViewHandoverSection(Employee actor){return isHr()||group("departmentHead");}
