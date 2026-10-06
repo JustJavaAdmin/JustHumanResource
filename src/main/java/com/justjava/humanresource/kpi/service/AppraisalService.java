@@ -8,6 +8,7 @@ import com.justjava.humanresource.kpi.enums.AppraisalOutcome;
 import com.justjava.humanresource.kpi.repositories.AppraisalCycleRepository;
 import com.justjava.humanresource.kpi.repositories.EmployeeAppraisalRepository;
 import com.justjava.humanresource.kpi.repositories.KpiAssignmentRepository;
+import com.justjava.humanresource.kpi.repositories.KpiDefinitionRepository;
 import com.justjava.humanresource.kpi.repositories.KpiMeasurementRepository;
 import com.justjava.humanresource.workflow.dto.FlowableTaskDTO;
 import com.justjava.humanresource.workflow.service.FlowableTaskService;
@@ -36,9 +37,11 @@ public class AppraisalService {
     private final EmployeeRepository employeeRepository;
     private final KpiAssignmentRepository assignmentRepository;
     private final KpiMeasurementRepository measurementRepository;
+    private final KpiDefinitionRepository kpiDefinitionRepository;
     private final EmployeeAppraisalRepository appraisalRepository;
     private final AppraisalCycleRepository cycleRepository;
     private final FlowableTaskService flowableTaskService;
+    private final KpiAppraisalLineService appraisalLineService;
 
 
     public Optional<EmployeeAppraisal> findAppraisalById(Long appraisalId) {
@@ -79,7 +82,9 @@ public class AppraisalService {
         log.info("Draft appraisal created for employee {} with kpiScore={}",
                 employeeId, kpiScore);
 
-        return appraisalRepository.save(appraisal);
+        EmployeeAppraisal saved = appraisalRepository.save(appraisal);
+        appraisalLineService.createMissingLines(saved.getId());
+        return saved;
     }
 
     /* =========================================================
@@ -104,11 +109,17 @@ public class AppraisalService {
             throw new IllegalStateException("Appraisal already finalized.");
         }
 
+        BigDecimal scorecardLineScore = appraisalLineService.calculateWeightedFinalScore(appraisalId);
+        BigDecimal kpiScore = scorecardLineScore.compareTo(BigDecimal.ZERO) > 0
+                ? scorecardLineScore
+                : appraisal.getKpiScore();
+
         BigDecimal finalScore = calculateFinalScore(
-                appraisal.getKpiScore(),
+                kpiScore,
                 managerScore
         );
 
+        appraisal.setKpiScore(kpiScore);
         appraisal.setManagerScore(managerScore);
         appraisal.setFinalScore(finalScore);
         appraisal.setOutcome(determineOutcome(finalScore));
@@ -188,6 +199,17 @@ public class AppraisalService {
         if (measurements.isEmpty()) {
             throw new IllegalStateException(
                     "No KPI measurements found for employee "
+                            + employeeId + " in cycle " + cycle.getName()
+            );
+        }
+
+        measurements = measurements.stream()
+                .filter(m -> !kpiDefinitionRepository.existsByParentDefinition_Id(m.getKpi().getId()))
+                .toList();
+
+        if (measurements.isEmpty()) {
+            throw new IllegalStateException(
+                    "No measurable child KPI measurements found for employee "
                             + employeeId + " in cycle " + cycle.getName()
             );
         }

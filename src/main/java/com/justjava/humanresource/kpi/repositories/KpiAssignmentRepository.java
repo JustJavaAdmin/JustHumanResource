@@ -21,11 +21,14 @@ public interface KpiAssignmentRepository
 
     List<KpiAssignment> findByJobStep_Id(Long jobStepId);
 
+    List<KpiAssignment> findByActiveTrue();
+
     List<KpiAssignment> findByEmployee_IdAndActiveTrue(Long employeeId);
 
     List<KpiAssignment> findByJobStep_IdAndActiveTrue(Long jobStepId);
 
     List<KpiAssignment> findByDepartment_IdAndActiveTrue(Long departmentId);
+    List<KpiAssignment> findByDepartment_Id(Long departmentId);
 
 
 
@@ -84,13 +87,13 @@ public interface KpiAssignmentRepository
            FROM KpiAssignment a
            WHERE a.active = true
            AND (
-                (a.employee.jobStep.id = :jobStepId)
+                (a.employee IS NULL AND a.jobStep.id = :jobStepId)
            )
            AND (a.validFrom IS NULL OR a.validFrom <= :referenceDate)
            AND (a.validTo IS NULL OR a.validTo >= :referenceDate)
            """)
     List<KpiAssignment> findEffectiveAssignmentsForJobStep(
-            @Param("employeeId") Long jobStepId,
+            @Param("jobStepId") Long jobStepId,
             @Param("referenceDate") LocalDate referenceDate
     );
 

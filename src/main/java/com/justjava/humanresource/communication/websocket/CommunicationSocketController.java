@@ -1,0 +1,63 @@
+package com.justjava.humanresource.communication.websocket;
+
+import com.justjava.humanresource.communication.dto.BroadcastCommand;
+import com.justjava.humanresource.communication.dto.BroadcastCommentCommand;
+import com.justjava.humanresource.communication.dto.BroadcastCommentResponse;
+import com.justjava.humanresource.communication.dto.BroadcastResponse;
+import com.justjava.humanresource.communication.dto.ChatMessageResponse;
+import com.justjava.humanresource.communication.dto.DirectMessageCommand;
+import com.justjava.humanresource.communication.service.CommunicationService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.stereotype.Controller;
+
+import java.security.Principal;
+
+@Controller
+@RequiredArgsConstructor
+public class CommunicationSocketController {
+
+    private final CommunicationService communicationService;
+    private final SimpMessagingTemplate messagingTemplate;
+
+    @MessageMapping("/chat.send")
+    public void sendDirectMessage(@Valid DirectMessageCommand command, Principal principal) {
+        ChatMessageResponse response = communicationService.sendDirectMessage(command, principal);
+        messagingTemplate.convertAndSendToUser(response.recipientEmployeeNumber(), "/queue/messages", response);
+        // If recipient is the HR system account, also publish to the HR inbox topic so HR UIs (principal != employeeNumber) receive it
+        if (response.recipientEmployeeNumber() != null && ("HR-SYSTEM".equalsIgnoreCase(response.recipientEmployeeNumber()) || "HR".equalsIgnoreCase(response.recipientEmployeeNumber()))) {
+            messagingTemplate.convertAndSend("/topic/hr-inbox", response);
+        }
+        // For HR system employee, use the principal name (HR:email) for routing back to sender
+        String senderPrincipal = principal != null ? principal.getName() : response.senderEmployeeNumber();
+        messagingTemplate.convertAndSendToUser(senderPrincipal, "/queue/messages", response);
+    }
+
+    @MessageMapping("/broadcast.send")
+    public void sendBroadcast(@Valid BroadcastCommand command) {
+        BroadcastResponse response = communicationService.createBroadcast(command);
+        messagingTemplate.convertAndSend("/topic/hr-broadcasts", response);
+    }
+
+    @MessageMapping("/broadcast.comment")
+    public void commentOnBroadcast(@Valid BroadcastCommentCommand command, Principal principal) {
+        BroadcastCommentResponse response = communicationService.addBroadcastComment(command, principal);
+        messagingTemplate.convertAndSend(
+                "/topic/hr-broadcasts/" + response.broadcastId() + "/comments",
+                response
+        );
+        messagingTemplate.convertAndSend(
+                "/topic/hr-broadcasts",
+                communicationService.getBroadcastSummary(response.broadcastId())
+        );
+    }
+
+    @MessageMapping("/broadcasts/{broadcastId}/read")
+    public void markRead(@DestinationVariable Long broadcastId) {
+        BroadcastResponse response = communicationService.markBroadcastRead(broadcastId);
+        messagingTemplate.convertAndSend("/topic/hr-broadcasts/" + response.id() + "/receipts", response);
+    }
+}

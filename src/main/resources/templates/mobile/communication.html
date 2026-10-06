@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="layouts/mobileEmployeeLayout">
+<head>
+    <meta charset="UTF-8">
+    <title>Messages</title>
+    <style>
+        .mchat { height:100%; display:flex; flex-direction:column; gap:12px; padding:0 16px 14px; }
+        .mchat-tabs { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; padding-top:4px; }
+        .mchat-tab { min-height:38px; border:1px solid #e2e8f0; border-radius:14px; background:#fff; color:#64748b; font-size:12px; font-weight:800; }
+        .dark .mchat-tab { border-color:#334155; background:#1e293b; color:#94a3b8; }
+        .mchat-tab.active { background:#2463eb; border-color:#2463eb; color:#fff; }
+        .mchat-panel { display:none; min-height:0; flex:1; overflow:hidden; border:1px solid #e2e8f0; border-radius:18px; background:#fff; }
+        .dark .mchat-panel { border-color:#334155; background:#1e293b; }
+        .mchat-panel.active { display:flex; flex-direction:column; }
+        .mchat-head { padding:14px; border-bottom:1px solid #e2e8f0; background:#f8fafc; }
+        .dark .mchat-head { border-color:#334155; background:#0f172a; }
+        .mchat-search, .mchat-input { width:100%; border:1px solid #e2e8f0; border-radius:14px; background:#fff; padding:11px 12px; font-size:14px; outline:none; resize:none; }
+        .dark .mchat-search, .dark .mchat-input { border-color:#334155; background:#0f172a; color:#f8fafc; }
+        .mchat-search:focus, .mchat-input:focus { border-color:#2463eb; box-shadow:0 0 0 3px rgba(36,99,235,.12); }
+        .person-row, .broadcast-row { width:100%; display:flex; align-items:center; gap:12px; padding:13px 14px; border-bottom:1px solid #eef2f7; text-align:left; }
+        .dark .person-row, .dark .broadcast-row { border-color:#334155; }
+        .avatar { width:42px; height:42px; border-radius:15px; display:flex; align-items:center; justify-content:center; background:#2463eb; color:white; font-size:13px; font-weight:900; flex:0 0 auto; }
+        .dot { width:10px; height:10px; border-radius:999px; background:#94a3b8; border:2px solid #fff; }
+        .dark .dot { border-color:#1e293b; }
+        .dot.online { background:#16a34a; }
+        .badge { min-width:22px; height:22px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; padding:0 7px; background:#dc2626; color:white; font-size:11px; font-weight:900; }
+        .message-scroll { flex:1; overflow-y:auto; padding:14px; background:#f8fafc; }
+        .dark .message-scroll { background:#0f172a; }
+        .message-row { display:flex; margin-bottom:10px; }
+        .message-row.mine { justify-content:flex-end; }
+        .bubble { max-width:84%; border:1px solid #e2e8f0; border-radius:16px; padding:10px 12px; background:#fff; font-size:14px; line-height:1.45; overflow-wrap:anywhere; }
+        .dark .bubble { border-color:#334155; background:#1e293b; }
+        .message-row.mine .bubble { background:#2463eb; border-color:#2463eb; color:#fff; }
+        .meta { margin-top:5px; font-size:10px; color:#64748b; }
+        .message-row.mine .meta { color:#dbeafe; }
+        .send-btn { width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:#2463eb; color:#fff; flex:0 0 auto; }
+        .attach-btn { width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; border:1px solid #e2e8f0; background:#fff; color:#64748b; flex:0 0 auto; }
+        .dark .attach-btn { border-color:#334155; background:#0f172a; color:#cbd5e1; }
+        .attachment-tray { display:flex; gap:6px; overflow-x:auto; padding:0 12px 10px; border-top:1px solid #e2e8f0; background:#fff; }
+        .dark .attachment-tray { border-color:#334155; background:#1e293b; }
+        .attachment-pill { display:inline-flex; align-items:center; gap:6px; max-width:190px; border:1px solid #e2e8f0; border-radius:999px; padding:5px 9px; font-size:12px; white-space:nowrap; }
+        .dark .attachment-pill { border-color:#334155; }
+        .attachment-list { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+        .attachment-link { display:flex; align-items:center; gap:6px; border:1px solid #e2e8f0; border-radius:12px; padding:7px 9px; font-size:12px; background:rgba(248,250,252,.75); }
+        .dark .attachment-link { border-color:#334155; background:rgba(15,23,42,.45); }
+        .message-row.mine .attachment-link { color:white; background:rgba(255,255,255,.14); border-color:rgba(255,255,255,.28); }
+        .comment-card { border:1px solid #e2e8f0; border-radius:14px; padding:10px 12px; background:#f8fafc; }
+        .dark .comment-card { border-color:#334155; background:#0f172a; }
+        .empty { height:100%; min-height:220px; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center; color:#64748b; }
+    </style>
+</head>
+<body>
+<main layout:fragment="content" class="mchat">
+    <div class="mchat-tabs">
+        <button class="mchat-tab active" data-mobile-tab="people">People</button>
+        <button class="mchat-tab" data-mobile-tab="groups">Groups</button>
+        <button class="mchat-tab" data-mobile-tab="chat">Chat</button>
+        <button class="mchat-tab" data-mobile-tab="broadcasts">HR Updates</button>
+    </div>
+
+    <section id="peoplePanel" class="mchat-panel active">
+        <div class="mchat-head">
+            <div class="flex items-center justify-between gap-3 mb-3">
+                <div>
+                    <h2 class="text-base font-bold">People</h2>
+                    <p class="text-xs text-slate-500"><span id="onlineCount">0</span> online now</p>
+                </div>
+                <button id="onlineFilter" class="px-3 py-2 rounded-xl bg-blue-50 text-primary text-xs font-bold" type="button">Online</button>
+            </div>
+            <input id="peopleSearch" class="mchat-search" placeholder="Search employees">
+        </div>
+        <div id="peopleList" class="flex-1 overflow-y-auto"></div>
+    </section>
+
+    <section id="groupsPanel" class="mchat-panel">
+        <div class="mchat-head">
+            <div class="flex items-center justify-between gap-3 mb-3">
+                <div>
+                    <h2 class="text-base font-bold">Groups</h2>
+                    <p class="text-xs text-slate-500">Department and HR chat groups</p>
+                </div>
+                <button id="createMobileGroupBtn" class="px-3 py-2 rounded-xl bg-blue-50 text-primary text-xs font-bold" th:if="${canCreateGroups}" type="button">Create</button>
+            </div>
+            <input id="groupSearch" class="mchat-search" placeholder="Search groups">
+        </div>
+        <div id="groupList" class="flex-1 overflow-y-auto"></div>
+    </section>
+
+    <section id="chatPanel" class="mchat-panel">
+        <div class="mchat-head flex items-center gap-3">
+            <div id="chatAvatar" class="avatar bg-slate-400">--</div>
+            <div class="min-w-0">
+                <h2 id="chatName" class="text-base font-bold truncate">Select a colleague</h2>
+                <p id="chatStatus" class="text-xs text-slate-500 truncate">Start from People</p>
+            </div>
+        </div>
+        <div id="messages" class="message-scroll"></div>
+        <div id="attachmentTray" class="attachment-tray hidden"></div>
+        <form id="messageForm" class="p-3 border-t border-slate-200 dark:border-slate-700 flex items-end gap-2">
+            <input id="messageFiles" type="file" multiple class="hidden" accept=".pdf,.png,.jpg,.jpeg,.txt,.doc,.docx,.xls,.xlsx">
+            <button id="attachFileBtn" class="attach-btn opacity-50" type="button" disabled><span class="material-symbols-outlined">attach_file</span></button>
+            <textarea id="messageInput" class="mchat-input min-h-[44px] max-h-28" rows="1" maxlength="2000" placeholder="Write a message" disabled></textarea>
+            <button id="sendMessageBtn" class="send-btn opacity-50" type="submit" disabled><span class="material-symbols-outlined">send</span></button>
+        </form>
+    </section>
+
+    <div id="mobileGroupModal" class="fixed inset-0 z-50 hidden bg-background-light dark:bg-background-dark">
+        <form id="mobileGroupForm" class="flex h-full flex-col">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                <div>
+                    <h2 class="text-lg font-bold">Create Group</h2>
+                    <p class="text-xs text-slate-500">Select members you are allowed to add.</p>
+                </div>
+                <button type="button" id="closeMobileGroupModal" class="size-10 rounded-full bg-slate-100 dark:bg-slate-800"><span class="material-symbols-outlined">close</span></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-5 space-y-3">
+                <input id="mobileGroupName" class="mchat-input" maxlength="100" placeholder="Group name" required>
+                <textarea id="mobileGroupDescription" class="mchat-input" maxlength="500" rows="2" placeholder="Description"></textarea>
+
+                <!-- Searchable Multi-select Dropdown for Members -->
+                <div class="relative">
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Members</label>
+                    <div id="mobileMemberDropdown" class="relative">
+                        <!-- Dropdown Trigger -->
+                        <button type="button" id="mobileMemberDropdownToggle" class="mchat-search w-full text-left justify-between py-3 pr-10" aria-expanded="false" aria-haspopup="listbox">
+                            <span id="mobileMemberDropdownPlaceholder" class="text-slate-500 dark:text-slate-400">Select employees...</span>
+                            <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">expand_more</span>
+                        </button>
+
+                        <!-- Dropdown Panel -->
+                        <div id="mobileMemberDropdownPanel" class="absolute z-50 w-full max-h-80 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg hidden mt-1">
+                            <!-- Search Input -->
+                            <div class="p-2 border-b border-slate-200 dark:border-slate-700">
+                                <input type="text" id="mobileMemberDropdownSearch" class="mchat-search w-full" placeholder="Search employees..." autocomplete="off">
+                            </div>
+                            <!-- Employee List -->
+                            <div id="mobileMemberDropdownList" class="max-h-60 overflow-y-auto" role="listbox">
+                                <!-- Populated by JS -->
+                            </div>
+                            <!-- Selected Count -->
+                            <div id="mobileMemberDropdownFooter" class="p-2 border-t border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 text-right hidden">
+                                <span id="mobileSelectedCount">0</span> selected
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Selected Members Tags -->
+                    <div id="mobileSelectedMembersTags" class="flex flex-wrap gap-1.5 mt-2 min-h-[28px]"></div>
+                    <input type="hidden" id="mobileMemberIds" name="memberEmployeeIds">
+                </div>
+
+                <p id="mobileGroupStatus" class="text-sm text-slate-500"></p>
+            </div>
+            <div class="p-5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700">
+                <button class="w-full h-12 rounded-2xl bg-primary text-white font-bold" type="submit">Create Group</button>
+            </div>
+        </form>
+    </div>
+
+    <section id="broadcastPanel" class="mchat-panel">
+        <div class="mchat-head">
+            <h2 class="text-base font-bold">HR Updates</h2>
+            <p class="text-xs text-slate-500">Broadcasts are delivered when you come online.</p>
+        </div>
+        <div id="broadcastList" class="max-h-[38%] overflow-y-auto border-b border-slate-200 dark:border-slate-700"></div>
+        <div id="broadcastDetail" class="flex-1 min-h-0 flex flex-col">
+            <div class="empty"><span class="material-symbols-outlined text-4xl mb-2">campaign</span><p class="text-sm font-semibold">Select an update</p></div>
+        </div>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
+    <script th:inline="javascript">
+        const currentEmployeeId = /*[[${currentEmployeeId}]]*/ 0;
+        const canCreateGroups = /*[[${canCreateGroups}]]*/ false;
+        let stompClient, selectedContact, selectedGroup, selectedBroadcast, activeCommentSubscription, activeGroupSubscription;
+        let contacts = [], conversations = [], broadcasts = [], groups = [], availableMembers = [], onlineOnly = false;
+        let selectedFiles = [];
+
+        function initials(name) { return (name || '').split(' ').filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('') || '--'; }
+        function fmt(value) { return value ? new Date(value).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : ''; }
+        function html(value) { const div = document.createElement('div'); div.textContent = value == null ? '' : String(value); return div.innerHTML; }
+        async function json(url, options) { const r = await fetch(url, options); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+
+        async function loadInitialData() {
+            [contacts, conversations, broadcasts, groups] = await Promise.all([
+                json('/employee/communication/employees'),
+                json('/employee/communication/conversations'),
+                json('/employee/communication/broadcasts'),
+                json('/mobile/employee/communication/groups')
+            ]);
+            mergeConversationData();
+            renderPeople();
+            renderGroups();
+            renderBroadcasts();
+        }
+
+        function mergeConversationData() {
+            const byId = new Map(contacts.map(contact => [contact.id, contact]));
+            conversations.forEach(conversation => {
+                if (conversation.otherParticipant && byId.has(conversation.otherParticipant.id)) {
+                    byId.set(conversation.otherParticipant.id, {
+                        ...byId.get(conversation.otherParticipant.id),
+                        unreadCount: conversation.otherParticipant.unreadCount,
+                        conversationId: conversation.id,
+                        lastMessage: conversation.lastMessage ? conversation.lastMessage.content : null,
+                        lastMessageAt: conversation.lastMessage ? conversation.lastMessage.createdAt : conversation.updatedAt,
+                        hasConversation: true
+                    });
+                }
+            });
+            contacts = [...byId.values()];
+        }
+
+        function renderPeople() {
+            const search = document.getElementById('peopleSearch').value.toLowerCase();
+            const filtered = sortContactsForChat(contacts).filter(c => (!onlineOnly || c.online) && (!search || c.fullName.toLowerCase().includes(search) || (c.department || '').toLowerCase().includes(search)));
+            document.getElementById('onlineCount').textContent = contacts.filter(c => c.online).length;
+            document.getElementById('peopleList').innerHTML = filtered.length ? filtered.map(c => `
+                <button class="person-row" data-contact-id="${c.id}" type="button">
+                    <div class="relative"><div class="avatar">${initials(c.fullName)}</div><span class="dot ${c.online ? 'online' : ''} absolute -right-1 -bottom-1"></span></div>
+                    <div class="min-w-0 flex-1"><div class="flex items-center justify-between gap-2"><p class="text-sm font-bold truncate">${html(c.fullName)}</p>${c.unreadCount > 0 ? `<span class="badge">${c.unreadCount}</span>` : ''}</div><div class="mt-0.5 flex items-center justify-between gap-2"><p class="text-xs text-slate-500 truncate">${html(c.lastMessage || c.department || 'Unassigned')}</p>${c.lastMessageAt ? `<span class="text-[10px] text-slate-400 flex-none">${shortTime(c.lastMessageAt)}</span>` : ''}</div></div>
+                </button>`).join('') : '<div class="empty"><span class="material-symbols-outlined text-4xl mb-2">person_search</span><p class="text-sm font-semibold">No employees found</p></div>';
+            document.querySelectorAll('[data-contact-id]').forEach(btn => btn.addEventListener('click', () => selectContact(Number(btn.dataset.contactId))));
+        }
+
+        function sortContactsForChat(list) {
+            return [...list].sort((a, b) => {
+                const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+                const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+                if (aTime !== bTime) return bTime - aTime;
+                if (a.online !== b.online) return a.online ? -1 : 1;
+                return (a.fullName || '').localeCompare(b.fullName || '');
+            });
+        }
+
+        function shortTime(value) {
+            if (!value) return '';
+            const date = new Date(value);
+            const today = new Date();
+            return date.toDateString() === today.toDateString()
+                ? date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+                : date.toLocaleDateString([], {month:'short', day:'numeric'});
+        }
+
+        function renderGroups() {
+            const search = document.getElementById('groupSearch').value.toLowerCase();
+            const filtered = [...groups].sort((a, b) => new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0))
+                .filter(g => !search || g.name.toLowerCase().includes(search) || (g.department || '').toLowerCase().includes(search));
+            document.getElementById('groupList').innerHTML = filtered.length ? filtered.map(g => `
+                <button class="person-row" data-group-id="${g.id}" type="button">
+                    <div class="avatar bg-emerald-600">${initials(g.name)}</div>
+                    <div class="min-w-0 flex-1"><div class="flex items-center justify-between gap-2"><p class="text-sm font-bold truncate">${html(g.name)}</p>${g.lastMessageAt ? `<span class="text-[10px] text-slate-400">${shortTime(g.lastMessageAt)}</span>` : ''}</div><p class="text-xs text-slate-500 truncate">${html(g.lastMessage || `${g.memberCount || 0} members - ${g.department || 'All departments'}`)}</p></div>
+                </button>`).join('') : '<div class="empty"><span class="material-symbols-outlined text-4xl mb-2">groups</span><p class="text-sm font-semibold">No groups yet</p></div>';
+            document.querySelectorAll('[data-group-id]').forEach(btn => btn.addEventListener('click', () => selectGroup(Number(btn.dataset.groupId))));
+        }
+
+        async function selectContact(id) {
+            selectedContact = contacts.find(c => c.id === id);
+            if (!selectedContact) return;
+            selectedGroup = null;
+            selectedContact.unreadCount = 0;
+            document.getElementById('chatAvatar').textContent = initials(selectedContact.fullName);
+            document.getElementById('chatName').textContent = selectedContact.fullName;
+            document.getElementById('chatStatus').textContent = `${selectedContact.online ? 'Online' : 'Offline'} - ${selectedContact.department || 'Unassigned'}`;
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendMessageBtn').disabled = false;
+            document.getElementById('attachFileBtn').disabled = false;
+            document.getElementById('sendMessageBtn').classList.remove('opacity-50');
+            document.getElementById('attachFileBtn').classList.remove('opacity-50');
+            renderPeople();
+            showTab('chat');
+            const conversation = conversations.find(item => item.otherParticipant && item.otherParticipant.id === id)
+                || (selectedContact.conversationId ? {id: selectedContact.conversationId} : null);
+            if (!conversation) { document.getElementById('messages').innerHTML = emptyChat(); return; }
+            renderMessages(await json(`/employee/communication/conversations/${conversation.id}/messages`));
+        }
+
+        async function selectGroup(id) {
+            selectedGroup = groups.find(g => g.id === id);
+            selectedContact = null;
+            if (!selectedGroup) return;
+            document.getElementById('chatAvatar').textContent = initials(selectedGroup.name);
+            document.getElementById('chatName').textContent = selectedGroup.name;
+            document.getElementById('chatStatus').textContent = `${selectedGroup.memberCount || 0} members - ${selectedGroup.department || 'All departments'}`;
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendMessageBtn').disabled = false;
+            document.getElementById('attachFileBtn').disabled = false;
+            document.getElementById('sendMessageBtn').classList.remove('opacity-50');
+            document.getElementById('attachFileBtn').classList.remove('opacity-50');
+            if (activeGroupSubscription) activeGroupSubscription.unsubscribe();
+            if (stompClient?.connected) activeGroupSubscription = stompClient.subscribe(`/topic/chat-groups/${id}/messages`, handleGroupMessage);
+            showTab('chat');
+            renderGroupMessages(await json(`/mobile/employee/communication/groups/${id}/messages`));
+        }
+
+        function renderMessages(items) {
+            const el = document.getElementById('messages');
+            el.innerHTML = items.length ? items.map(messageTpl).join('') : emptyChat();
+            el.scrollTop = el.scrollHeight;
+        }
+        function renderGroupMessages(items) { const el = document.getElementById('messages'); el.innerHTML = items.length ? items.map(groupMessageTpl).join('') : emptyGroupChat(); el.scrollTop = el.scrollHeight; }
+        function messageTpl(m) { const mine = m.senderId === currentEmployeeId; return `<div class="message-row ${mine ? 'mine' : ''}"><div class="bubble">${m.content ? `<div>${html(m.content)}</div>` : ''}${attachmentList(m.attachments || [])}<div class="meta">${fmt(m.createdAt)}${mine && m.deliveredAt ? ' - Delivered' : ''}</div></div></div>`; }
+        function groupMessageTpl(m) { const mine = m.senderId === currentEmployeeId; return `<div class="message-row ${mine ? 'mine' : ''}"><div class="bubble">${mine ? '' : `<div class="text-[10px] font-bold mb-1 text-slate-500">${html(m.senderName)}</div>`}${m.content ? `<div>${html(m.content)}</div>` : ''}${attachmentList(m.attachments || [])}<div class="meta">${fmt(m.createdAt)}</div></div></div>`; }
+        function emptyChat() { return '<div class="empty"><span class="material-symbols-outlined text-4xl mb-2">chat_bubble</span><p class="text-sm font-semibold">No messages yet</p><p class="text-xs mt-1">Send the first message.</p></div>'; }
+        function emptyGroupChat() { return '<div class="empty"><span class="material-symbols-outlined text-4xl mb-2">groups</span><p class="text-sm font-semibold">No group messages yet</p><p class="text-xs mt-1">Start the discussion.</p></div>'; }
+
+        document.getElementById('attachFileBtn').addEventListener('click', () => document.getElementById('messageFiles').click());
+        document.getElementById('messageFiles').addEventListener('change', () => {
+            selectedFiles = Array.from(document.getElementById('messageFiles').files || []).slice(0, 5);
+            renderSelectedFiles();
+        });
+
+        document.getElementById('messageForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            const input = document.getElementById('messageInput');
+            const content = input.value.trim();
+            if (!content && selectedFiles.length === 0) return;
+            if (selectedFiles.length > 0) {
+                await sendMessageWithAttachments(content);
+                return;
+            }
+            if (!stompClient?.connected) return;
+            if (selectedGroup) stompClient.publish({destination:'/app/groups.message', body:JSON.stringify({groupId:selectedGroup.id, content})});
+            else if (selectedContact) stompClient.publish({destination:'/app/chat.send', body:JSON.stringify({recipientEmployeeId:selectedContact.id, content})});
+            input.value = '';
+        });
+
+        async function sendMessageWithAttachments(content) {
+            const form = new FormData();
+            form.append('content', content);
+            selectedFiles.forEach(file => form.append('files', file));
+            const url = selectedGroup
+                ? `/mobile/employee/communication/groups/${selectedGroup.id}/messages`
+                : '/mobile/employee/communication/messages';
+            if (!selectedGroup && selectedContact) form.append('recipientEmployeeId', selectedContact.id);
+            const response = await fetch(url, {method:'POST', body:form});
+            if (!response.ok) {
+                alert('Message could not be sent: ' + await response.text());
+                return;
+            }
+            document.getElementById('messageInput').value = '';
+            selectedFiles = [];
+            document.getElementById('messageFiles').value = '';
+            renderSelectedFiles();
+        }
+
+        function renderSelectedFiles() {
+            const tray = document.getElementById('attachmentTray');
+            tray.classList.toggle('hidden', selectedFiles.length === 0);
+            tray.innerHTML = selectedFiles.map((file, index) => `
+                <span class="attachment-pill">
+                    <span class="material-symbols-outlined text-sm">attach_file</span>
+                    <span class="truncate">${html(file.name)}</span>
+                    <button type="button" onclick="removeSelectedFile(${index})"><span class="material-symbols-outlined text-sm">close</span></button>
+                </span>
+            `).join('');
+        }
+
+        function removeSelectedFile(index) {
+            selectedFiles = selectedFiles.filter((_, fileIndex) => fileIndex !== index);
+            renderSelectedFiles();
+        }
+
+        function attachmentList(attachments) {
+            if (!attachments.length) return '';
+            return `<div class="attachment-list">${attachments.map(a => `
+                <a class="attachment-link" href="${a.downloadUrl}" target="_blank">
+                    <span class="material-symbols-outlined text-sm">${attachmentIcon(a.contentType)}</span>
+                    <span class="truncate">${html(a.originalFilename)}</span>
+                    <span class="ml-auto text-[10px]">${fileSize(a.fileSize)}</span>
+                </a>
+            `).join('')}</div>`;
+        }
+
+        function attachmentIcon(contentType) {
+            const type = (contentType || '').toLowerCase();
+            if (type.includes('image')) return 'image';
+            if (type.includes('pdf')) return 'picture_as_pdf';
+            return 'description';
+        }
+
+        function fileSize(size) {
+            if (!size) return '';
+            if (size < 1024 * 1024) return Math.round(size / 1024) + ' KB';
+            return (size / 1024 / 1024).toFixed(1) + ' MB';
+        }
+
+        function handleMessage(frame) {
+            const msg = JSON.parse(frame.body);
+            const otherId = msg.senderId === currentEmployeeId ? msg.recipientId : msg.senderId;
+            const contact = contacts.find(c => c.id === otherId);
+            if (contact && (!selectedContact || selectedContact.id !== otherId)) contact.unreadCount = (contact.unreadCount || 0) + 1;
+            if (contact) {
+                contact.conversationId = msg.conversationId;
+                contact.lastMessage = msg.content;
+                contact.lastMessageAt = msg.createdAt;
+                contact.hasConversation = true;
+            }
+            const existing = conversations.find(c => c.id === msg.conversationId);
+            if (existing) {
+                existing.lastMessage = msg;
+                existing.updatedAt = msg.createdAt;
+            } else if (contact) {
+                conversations.unshift({id:msg.conversationId, otherParticipant:contact, lastMessage:msg, updatedAt:msg.createdAt});
+            }
+            conversations.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+            if (selectedContact && selectedContact.id === otherId) {
+                const el = document.getElementById('messages');
+                if (el.querySelector('.empty')) el.innerHTML = '';
+                el.insertAdjacentHTML('beforeend', messageTpl(msg));
+                el.scrollTop = el.scrollHeight;
+            }
+            renderPeople();
+        }
+
+        function handleGroupMessage(frame) {
+            const msg = JSON.parse(frame.body);
+            const group = groups.find(g => g.id === msg.groupId);
+            if (group) {
+                group.lastMessage = msg.content;
+                group.lastMessageAt = msg.createdAt;
+            }
+            if (selectedGroup && selectedGroup.id === msg.groupId) {
+                const el = document.getElementById('messages');
+                if (el.querySelector('.empty')) el.innerHTML = '';
+                el.insertAdjacentHTML('beforeend', groupMessageTpl(msg));
+                el.scrollTop = el.scrollHeight;
+            }
+            renderGroups();
+        }
+
+        function renderBroadcasts() {
+            document.getElementById('broadcastList').innerHTML = broadcasts.length ? broadcasts.map(b => `
+                <button class="broadcast-row" data-broadcast-id="${b.id}" type="button">
+                    <div class="min-w-0 flex-1"><div class="flex items-center gap-2"><p class="text-sm font-bold truncate">${html(b.title)}</p>${b.read ? '' : '<span class="w-2 h-2 rounded-full bg-primary flex-none"></span>'}</div><p class="text-xs text-slate-500 mt-1">${fmt(b.createdAt)} - ${b.commentCount || 0} comments</p></div>
+                    <span class="material-symbols-outlined text-slate-400">chevron_right</span>
+                </button>`).join('') : '<div class="empty"><span class="material-symbols-outlined text-4xl mb-2">campaign</span><p class="text-sm font-semibold">No HR updates yet</p></div>';
+            document.querySelectorAll('[data-broadcast-id]').forEach(btn => btn.addEventListener('click', () => selectBroadcast(Number(btn.dataset.broadcastId))));
+        }
+
+        async function selectBroadcast(id) {
+            selectedBroadcast = broadcasts.find(b => b.id === id);
+            if (!selectedBroadcast) return;
+            await fetch(`/employee/communication/broadcasts/${id}/read`, {method:'POST'});
+            selectedBroadcast.read = true;
+            renderBroadcasts();
+            if (activeCommentSubscription) activeCommentSubscription.unsubscribe();
+            if (stompClient?.connected) activeCommentSubscription = stompClient.subscribe(`/topic/hr-broadcasts/${id}/comments`, addComment);
+            const comments = await json(`/employee/communication/broadcasts/${id}/comments`);
+            renderBroadcastDetail(comments);
+        }
+
+        function renderBroadcastDetail(comments) {
+            document.getElementById('broadcastDetail').innerHTML = `
+                <div class="p-4 border-b border-slate-200 dark:border-slate-700"><h3 class="text-base font-bold">${html(selectedBroadcast.title)}</h3><p class="text-xs text-slate-500 mt-1">${fmt(selectedBroadcast.createdAt)} by ${html(selectedBroadcast.createdByName || 'HR')}</p><p class="mt-3 text-sm leading-6 whitespace-pre-wrap">${html(selectedBroadcast.content)}</p>${attachmentList(selectedBroadcast.attachments || [])}</div>
+                <div id="commentList" class="flex-1 overflow-y-auto p-3 space-y-2">${comments.length ? comments.map(commentTpl).join('') : '<p class="text-sm text-slate-500 p-2">No comments yet.</p>'}</div>
+                <form id="commentForm" class="p-3 border-t border-slate-200 dark:border-slate-700 flex items-end gap-2"><textarea id="commentInput" class="mchat-input min-h-[44px] max-h-28" rows="1" maxlength="2000" placeholder="Add a comment"></textarea><button class="send-btn" type="submit"><span class="material-symbols-outlined">send</span></button></form>`;
+            document.getElementById('commentForm').addEventListener('submit', e => {
+                e.preventDefault();
+                const input = document.getElementById('commentInput');
+                const content = input.value.trim();
+                if (!content || !stompClient?.connected) return;
+                stompClient.publish({destination:'/app/broadcast.comment', body:JSON.stringify({broadcastId:selectedBroadcast.id, content})});
+                input.value = '';
+            });
+        }
+
+        function commentTpl(c) { return `<div class="comment-card"><div class="flex items-center justify-between gap-2"><p class="text-sm font-bold">${html(c.employeeName)}</p><span class="text-[10px] text-slate-500">${fmt(c.createdAt)}</span></div><p class="text-xs text-slate-500 mb-2">${html(c.department || 'Unassigned')}</p><p class="text-sm whitespace-pre-wrap">${html(c.content)}</p></div>`; }
+        function addComment(frame) { const c = JSON.parse(frame.body || '{}'); if (!selectedBroadcast || c.broadcastId !== selectedBroadcast.id) return; const list = document.getElementById('commentList'); if (list.textContent.includes('No comments yet.')) list.innerHTML = ''; list.insertAdjacentHTML('beforeend', commentTpl(c)); list.scrollTop = list.scrollHeight; }
+        function handleBroadcast(frame) { const b = JSON.parse(frame.body); const existing = broadcasts.find(item => item.id === b.id); const merged = existing ? {...b, read: existing.read} : b; broadcasts = [merged, ...broadcasts.filter(item => item.id !== b.id)]; if (selectedBroadcast && selectedBroadcast.id === merged.id) selectedBroadcast = merged; renderBroadcasts(); }
+        function handleGroupSummary(frame) { const group = JSON.parse(frame.body); groups = [group, ...groups.filter(g => g.id !== group.id)]; if (selectedGroup && selectedGroup.id === group.id) selectedGroup = group; renderGroups(); }
+        function handlePresence(frame) { const p = JSON.parse(frame.body); contacts = contacts.map(c => c.id === p.employeeId ? {...c, online:p.online} : c); if (selectedContact?.id === p.employeeId) document.getElementById('chatStatus').textContent = `${p.online ? 'Online' : 'Offline'} - ${selectedContact.department || 'Unassigned'}`; renderPeople(); }
+        function showTab(tab) { document.querySelectorAll('.mchat-tab').forEach(b => b.classList.toggle('active', b.dataset.mobileTab === tab)); document.querySelectorAll('.mchat-panel').forEach(p => p.classList.remove('active')); document.getElementById(tab + 'Panel').classList.add('active'); }
+        function connectSocket() { stompClient = new StompJs.Client({webSocketFactory:() => new SockJS('/ws'), reconnectDelay:3000, onConnect:() => { stompClient.subscribe('/user/queue/messages', handleMessage); stompClient.subscribe('/user/queue/broadcasts', handleBroadcast); stompClient.subscribe('/topic/hr-broadcasts', handleBroadcast); stompClient.subscribe('/topic/presence', handlePresence); stompClient.subscribe('/user/queue/group-notifications', handleGroupSummary); if (selectedGroup) activeGroupSubscription = stompClient.subscribe(`/topic/chat-groups/${selectedGroup.id}/messages`, handleGroupMessage); }}); stompClient.activate(); }
+
+        async function openMobileGroupModal() {
+            if (!canCreateGroups) return;
+            document.getElementById('mobileGroupModal').classList.remove('hidden');
+            document.getElementById('mobileGroupStatus').textContent = 'Loading members...';
+            availableMembers = await json('/mobile/employee/communication/groups/available-members');
+            renderMobileMemberDropdown();
+            document.getElementById('mobileGroupStatus').textContent = '';
+        }
+        function closeMobileGroupModal() {
+            document.getElementById('mobileGroupModal').classList.add('hidden');
+            document.getElementById('mobileGroupForm').reset();
+            // Reset member selection
+            document.getElementById('mobileMemberIds').value = '';
+            document.getElementById('mobileSelectedMembersTags').innerHTML = '';
+            document.getElementById('mobileMemberDropdownPlaceholder').textContent = 'Select employees...';
+            document.getElementById('mobileMemberDropdownPlaceholder').classList.add('text-slate-500', 'dark:text-slate-400');
+            document.getElementById('mobileMemberDropdownPlaceholder').classList.remove('text-slate-900', 'dark:text-white');
+            document.getElementById('mobileSelectedCount').textContent = '0';
+            document.getElementById('mobileMemberDropdownFooter').classList.add('hidden');
+            document.querySelectorAll('.mobile-member-dropdown-checkbox').forEach(cb => cb.checked = false);
+            document.getElementById('mobileMemberDropdownPanel').classList.add('hidden');
+            document.getElementById('mobileMemberDropdownToggle').setAttribute('aria-expanded', 'false');
+        }
+
+        function renderMobileMemberDropdown() {
+            const list = document.getElementById('mobileMemberDropdownList');
+            if (!list) return;
+            list.innerHTML = availableMembers.map(member => `
+                <label class="mobile-member-dropdown-item flex items-center gap-3 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer" role="option" data-id="${member.id}">
+                    <input type="checkbox" class="mobile-member-dropdown-checkbox w-4 h-4 text-primary rounded border-slate-300" value="${member.id}">
+                    <span class="avatar size-9 text-xs">${initials(member.fullName)}</span>
+                    <span class="min-w-0 flex-1">
+                        <span class="block text-sm font-medium truncate">${html(member.fullName)}</span>
+                        <span class="block text-xs text-slate-500 truncate">${html(member.department || 'Unassigned')}</span>
+                    </span>
+                </label>
+            `).join('');
+
+            // Attach click handlers to checkboxes
+            list.querySelectorAll('.mobile-member-dropdown-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', handleMobileMemberSelect);
+            });
+
+            // Also handle label clicks for better UX
+            list.querySelectorAll('.mobile-member-dropdown-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    if (e.target.type !== 'checkbox') {
+                        const checkbox = item.querySelector('input[type="checkbox"]');
+                        checkbox.checked = !checkbox.checked;
+                        handleMobileMemberSelect({ target: checkbox });
+                    }
+                });
+            });
+        }
+
+        function handleMobileMemberSelect(e) {
+            const checkbox = e.target;
+            const memberId = Number(checkbox.value);
+            const member = availableMembers.find(m => m.id === memberId);
+            if (!member) return;
+
+            const tagsContainer = document.getElementById('mobileSelectedMembersTags');
+            const hiddenInput = document.getElementById('mobileMemberIds');
+            const footer = document.getElementById('mobileMemberDropdownFooter');
+            const countEl = document.getElementById('mobileSelectedCount');
+            const placeholder = document.getElementById('mobileMemberDropdownPlaceholder');
+
+            // Get current selected IDs from hidden input
+            let selectedIds = hiddenInput.value ? hiddenInput.value.split(',').map(Number) : [];
+
+            if (checkbox.checked) {
+                // Add member
+                if (!selectedIds.includes(memberId)) {
+                    selectedIds.push(memberId);
+                }
+            } else {
+                // Remove member
+                selectedIds = selectedIds.filter(id => id !== memberId);
+            }
+
+            // Update hidden input
+            hiddenInput.value = selectedIds.join(',');
+
+            // Update tags display
+            tagsContainer.innerHTML = selectedIds.map(id => {
+                const m = availableMembers.find(x => x.id === id);
+                if (!m) return '';
+                return `<span class="inline-flex items-center gap-1 px-2 py-1 bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 rounded-full text-xs">
+                    ${html(m.fullName)}
+                    <button type="button" class="mobile-member-tag-remove ml-1 hover:text-primary-600 dark:hover:text-primary-400" data-id="${id}">&times;</button>
+                </span>`;
+            }).join('');
+
+            // Attach remove handlers
+            tagsContainer.querySelectorAll('.mobile-member-tag-remove').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const id = Number(btn.dataset.id);
+                    const dropdownList = document.getElementById('mobileMemberDropdownList');
+                    const cb = dropdownList?.querySelector(`.mobile-member-dropdown-checkbox[value="${id}"]`);
+                    if (cb) {
+                        cb.checked = false;
+                        handleMobileMemberSelect({ target: cb });
+                    }
+                });
+            });
+
+            // Update count and placeholder
+            countEl.textContent = selectedIds.length;
+            footer.classList.toggle('hidden', selectedIds.length === 0);
+            placeholder.textContent = selectedIds.length > 0 ? `${selectedIds.length} employee${selectedIds.length > 1 ? 's' : ''} selected` : 'Select employees...';
+            placeholder.classList.toggle('text-slate-500', selectedIds.length === 0);
+            placeholder.classList.toggle('dark:text-slate-400', selectedIds.length === 0);
+            placeholder.classList.toggle('text-slate-900', selectedIds.length > 0);
+            placeholder.classList.toggle('dark:text-white', selectedIds.length > 0);
+        }
+
+        // Dropdown toggle and search logic for mobile
+        let mobileDropdownOpen = false;
+        function toggleMobileMemberDropdown() {
+            const panel = document.getElementById('mobileMemberDropdownPanel');
+            const toggle = document.getElementById('mobileMemberDropdownToggle');
+            mobileDropdownOpen = !mobileDropdownOpen;
+            panel.classList.toggle('hidden', !mobileDropdownOpen);
+            toggle.setAttribute('aria-expanded', mobileDropdownOpen);
+            if (mobileDropdownOpen) {
+                document.getElementById('mobileMemberDropdownSearch').focus();
+            }
+        }
+
+        function filterMobileMemberDropdown() {
+            const search = document.getElementById('mobileMemberDropdownSearch').value.toLowerCase();
+            const items = document.querySelectorAll('.mobile-member-dropdown-item');
+            items.forEach(item => {
+                const name = item.querySelector('.font-medium').textContent.toLowerCase();
+                const dept = item.querySelector('.text-xs').textContent.toLowerCase();
+                item.style.display = (!search || name.includes(search) || dept.includes(search)) ? 'flex' : 'none';
+            });
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (mobileDropdownOpen && !e.target.closest('#mobileMemberDropdown')) {
+                toggleMobileMemberDropdown();
+            }
+        });
+
+        document.querySelectorAll('.mchat-tab').forEach(btn => btn.addEventListener('click', () => showTab(btn.dataset.mobileTab)));
+        document.getElementById('peopleSearch').addEventListener('input', renderPeople);
+        document.getElementById('groupSearch').addEventListener('input', renderGroups);
+        document.getElementById('onlineFilter').addEventListener('click', () => { onlineOnly = !onlineOnly; renderPeople(); });
+        document.getElementById('createMobileGroupBtn')?.addEventListener('click', openMobileGroupModal);
+        document.getElementById('closeMobileGroupModal')?.addEventListener('click', closeMobileGroupModal);
+
+        // Mobile dropdown toggle
+        document.getElementById('mobileMemberDropdownToggle')?.addEventListener('click', toggleMobileMemberDropdown);
+
+        // Mobile dropdown search filter
+        document.getElementById('mobileMemberDropdownSearch')?.addEventListener('input', filterMobileMemberDropdown);
+
+        document.getElementById('mobileGroupForm')?.addEventListener('submit', async event => {
+            event.preventDefault();
+            const hiddenInput = document.getElementById('mobileMemberIds');
+            const memberEmployeeIds = hiddenInput.value ? hiddenInput.value.split(',').map(Number).filter(n => !isNaN(n)) : [];
+            try {
+                const group = await json('/mobile/employee/communication/groups', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:document.getElementById('mobileGroupName').value, description:document.getElementById('mobileGroupDescription').value, memberEmployeeIds})});
+                groups = [group, ...groups.filter(g => g.id !== group.id)];
+                closeMobileGroupModal();
+                showTab('groups');
+                selectGroup(group.id);
+            } catch (e) {
+                document.getElementById('mobileGroupStatus').textContent = 'Group could not be created. Check member scope and try again.';
+            }
+        });
+        document.addEventListener('DOMContentLoaded', async () => { await loadInitialData(); connectSocket(); });
+    </script>
+</main>
+</body>
+</html>

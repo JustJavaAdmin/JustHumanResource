@@ -103,9 +103,12 @@ public class EmployeeController {
             ).ifPresent(line -> primaryManagerMap.put(employee.getId(), line.getManager().getId()));
         }
 
-        employees.forEach(e ->
-                System.out.println("Employee: " + e.getFirstName() + " " + e.getEmploymentStatus()
-                        + ", Department: " + e.getDepartment().getName()));
+        // FIX: add null check for department before calling getName()
+        employees.forEach(e -> {
+            String deptName = e.getDepartment() != null ? e.getDepartment().getName() : "No Department";
+            System.out.println("Employee: " + e.getFirstName() + " " + e.getEmploymentStatus()
+                    + ", Department: " + deptName);
+        });
 
         List<Deduction>  deductions = payrollSetupService.getActiveDeductions();
         List<Allowance>  allowances = payrollSetupService.getActiveAllowances();
@@ -499,6 +502,19 @@ public class EmployeeController {
         model.addAttribute("subTitle",
                 "View your leave balance, request time off, and track your leave history");
         return "employees/leave";
+    }
+
+    @GetMapping("/employee/leave/details/{id}")
+    public String getLeaveDetails(@PathVariable Long id, Model model) {
+        String email = (String) authenticationManager.get("email");
+        Employee loginEmployee = employeeService.getByEmail(email);
+        Employee employee = employeeService.getEmployeeWithBankDetails(loginEmployee.getId());
+
+        model.addAttribute("employee", employee);
+        model.addAttribute("leaveRequestId", id);
+        model.addAttribute("title", "Leave Request Details");
+        model.addAttribute("subTitle", "Full details for this leave request");
+        return "employees/leave-details";
     }
 
     @GetMapping("employee/performance")

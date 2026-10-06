@@ -339,27 +339,7 @@
   <!-- ==================== FILTERS ==================== -->
   <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6">
     <div class="flex flex-wrap items-end gap-4">
-      <div class="flex-1 min-w-40">
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Cycle</label>
-        <select id="appraisalFilterCycle" onchange="applyFilters()"
-                class="w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 border-0 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm">
-          <option value="all">All Cycles</option>
-          <option value="jan-2024">January 2024</option>
-          <option value="feb-2024">February 2024</option>
-          <option value="mar-2024">March 2024</option>
-        </select>
-      </div>
-      <div class="flex-1 min-w-40">
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Employee</label>
-        <select id="appraisalFilterEmployee" onchange="applyFilters()"
-                class="w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 border-0 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm">
-          <option value="all">All Employees</option>
-          <option value="john-doe">John Doe</option>
-          <option value="jane-smith">Jane Smith</option>
-          <option value="mike-johnson">Mike Johnson</option>
-          <option value="sarah-williams">Sarah Williams</option>
-        </select>
-      </div>
+
       <!-- Stage summary pills -->
       <div class="flex items-center gap-2 pb-0.5">
         <span class="flex items-center gap-1.5 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-900/40 text-xs font-semibold text-blue-700 dark:text-blue-300">
@@ -442,10 +422,18 @@
               data-mode="edit" on the <tr> tells openSlideOver to open in editable mode:
               inputs are editable, submit button is shown.
             -->
-            <button type="button" onclick="openSlideOver(this.closest('tr'))"
-                    class="bg-blue-600 text-white text-xs font-semibold px-4 py-1.5 rounded-lg hover:bg-blue-700 flex items-center gap-1.5">
-              <span class="material-icons-round" style="font-size:14px;">rate_review</span> Review
-            </button>
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="openSlideOver(this.closest('tr'))"
+                      class="bg-blue-600 text-white text-xs font-semibold px-4 py-1.5 rounded-lg hover:bg-blue-700 flex items-center gap-1.5">
+                <span class="material-icons-round" style="font-size:14px;">rate_review</span> Review
+              </button>
+              <a th:href="@{/kpi/appraisals/{id}/scorecard(id=${appraisal.appraisal.id})}"
+                 class="inline-flex items-center gap-1 text-xs font-bold text-blue-700 dark:text-blue-400 hover:underline"
+                 title="View scorecard">
+                <span class="material-icons-round" style="font-size:14px;">visibility</span>
+                View Scorecard
+              </a>
+            </div>
           </td>
         </tr>
 
@@ -540,11 +528,19 @@
           </td>
           <td th:text="${appraisal.appraisal.completedAt}" class="px-5 py-3.5 text-xs text-gray-400">2024-02-05</td>
           <td class="px-5 py-3.5">
-            <button type="button" onclick="openDetailModal(this.closest('tr'))"
-                    class="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                    title="View full detail">
-              <span class="material-icons-round" style="font-size:18px;">open_in_new</span>
-            </button>
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="openDetailModal(this.closest('tr'))"
+                      class="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                      title="View full detail">
+                <span class="material-icons-round" style="font-size:18px;">open_in_new</span>
+              </button>
+              <a th:href="@{/kpi/appraisals/{id}/scorecard(id=${appraisal.appraisal.id})}"
+                 class="inline-flex items-center gap-1 text-xs font-bold text-blue-700 dark:text-blue-400 hover:underline"
+                 title="View scorecard">
+                <span class="material-icons-round" style="font-size:14px;">visibility</span>
+                View Scorecard
+              </a>
+            </div>
           </td>
         </tr>
 

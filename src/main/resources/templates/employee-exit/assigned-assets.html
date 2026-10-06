@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{employee-exit/workflow-layout}">
+<head><title>Assigned Assets</title></head>
+<body>
+<main layout:fragment="content" class="space-y-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold">Assigned Assets</h2>
+            <p class="text-gray-500">Maintain the locally assigned assets that exit "Sync assigned assets" pulls from.</p>
+        </div>
+        <a th:if="${canSeeExitList}" href="/employee-exits" class="btn-secondary inline-flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Back to exits</a>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+        <form method="get" th:action="@{/employee-exits/assigned-assets}" class="flex flex-wrap items-end gap-3">
+            <div class="flex-1 min-w-[240px]">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Employee</label>
+                <select name="employeeId" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+                    <option value="">Select an employee</option>
+                    <option th:each="e:${employees}" th:value="${e.id}" th:text="${e.fullName + ' (' + e.employeeNumber + ')'}" th:selected="${selectedEmployeeId != null and selectedEmployeeId == e.id}"></option>
+                </select>
+            </div>
+            <button class="btn-primary inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 transition-colors">View assets</button>
+        </form>
+    </div>
+
+    <div th:if="${selectedEmployeeId != null}" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 space-y-4">
+        <h3 class="font-bold">Assigned assets</h3>
+        <div th:each="a:${assets}" class="flex flex-wrap justify-between items-center gap-3 py-3 border-b border-gray-100 dark:border-gray-700">
+            <div>
+                <p class="font-medium" th:text="${a.assetName}">Asset</p>
+                <p class="text-xs text-gray-400" th:text="${a.externalAssetId + (a.category != null ? ' - ' + a.category : '')}">ID</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="badge" th:classappend="${a.active} ? ' badge-success' : ' badge-warning'" th:text="${a.active} ? 'Active' : 'Inactive'">Status</span>
+                <form th:if="${a.active}" method="post" th:action="@{/employee-exits/assigned-assets/{id}/deactivate(id=${a.id})}">
+                    <input type="hidden" name="employeeId" th:value="${selectedEmployeeId}">
+                    <button class="btn-danger inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 transition-colors">Mark inactive</button>
+                </form>
+            </div>
+        </div>
+        <p th:if="${#lists.isEmpty(assets)}" class="text-sm text-gray-500">No assigned assets recorded for this employee yet.</p>
+
+        <form id="addAssetForm" method="post" th:action="@{/employee-exits/assigned-assets}" class="grid sm:grid-cols-3 gap-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <input type="hidden" name="employeeId" th:value="${selectedEmployeeId}">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">External asset ID</label>
+                <input name="externalAssetId" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors" placeholder="External asset ID" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Asset name</label>
+                <input name="assetName" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors" placeholder="Asset name" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Asset code</label>
+                <input name="externalAssetCode" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors" placeholder="Asset code">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Category</label>
+                <input name="category" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors" placeholder="Category">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Assessed value</label>
+                <input type="text" inputmode="decimal" autocomplete="off" id="assessedValue" name="assessedValue" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors" placeholder="Assessed value">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Assigned date</label>
+                <input type="date" name="assignedDate" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+            </div>
+            <div class="sm:col-span-3">
+                <button class="btn-primary inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 transition-colors">Add assigned asset</button>
+            </div>
+        </form>
+    </div>
+
+    <p th:if="${selectedEmployeeId == null}" class="text-sm text-gray-500">Select an employee above to view or add their assigned assets.</p>
+
+    <script th:inline="none">
+        (function () {
+            function formatNumberInput(input) {
+                input.addEventListener('input', function () {
+                    var cursorFromEnd = input.value.length - input.selectionStart;
+                    var raw = input.value.replace(/[^\d.]/g, '');
+                    var firstDot = raw.indexOf('.');
+                    if (firstDot !== -1) {
+                        raw = raw.slice(0, firstDot + 1) + raw.slice(firstDot + 1).replace(/\./g, '');
+                    }
+                    var parts = raw.split('.');
+                    var intPart = parts[0].replace(/^0+(?=\d)/, '');
+                    var decPart = parts[1];
+                    var formattedInt = intPart ? intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
+                    input.value = decPart !== undefined ? formattedInt + '.' + decPart : formattedInt;
+                    var newPos = Math.max(input.value.length - cursorFromEnd, 0);
+                    input.setSelectionRange(newPos, newPos);
+                });
+            }
+
+            function stripCommasOnSubmit(form, input) {
+                if (!form || !input) return;
+                form.addEventListener('submit', function () {
+                    input.value = input.value.replace(/,/g, '');
+                });
+            }
+
+            var assessedValueInput = document.getElementById('assessedValue');
+            var addAssetForm = document.getElementById('addAssetForm');
+            if (assessedValueInput) {
+                formatNumberInput(assessedValueInput);
+                stripCommasOnSubmit(addAssetForm, assessedValueInput);
+            }
+        })();
+    </script>
+</main>
+</body>
+</html>

@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import com.justjava.humanresource.kpi.service.KpiCsvUploadResultDTO;
 import com.justjava.humanresource.kpi.service.KpiCsvUploadService;
 import org.springframework.core.io.ByteArrayResource;
@@ -108,7 +109,7 @@ public class KpiController {
 
         Map<JobStep, List<KpiAssignmentResponseDTO>> assignmentsByJobStep = new LinkedHashMap<>();
         for (JobStep jobStep : uniqueJobSteps) {
-            List<KpiAssignmentResponseDTO> jobStepKpis = kpiAssignmentService.getAssignmentsForEmployee(jobStep.getId());
+            List<KpiAssignmentResponseDTO> jobStepKpis = kpiAssignmentService.getAssignmentsForJobStep(jobStep.getId());
             assignmentsByJobStep.put(jobStep, jobStepKpis);
         }
 
@@ -211,7 +212,7 @@ public class KpiController {
         model.addAttribute("assignmentsByEmployee", assignmentsByEmployee.size());
         model.addAttribute("assignmentsByJobStep", assignmentsByJobStep.size());
         model.addAttribute("assignmentsByDepartment", assignmentsByDepartment);
-        model.addAttribute("totalAssignments",assignmentsByEmployee.size() + assignmentsByJobStep.size());
+        model.addAttribute("totalAssignments",assignmentsByEmployee.size() + assignmentsByJobStep.size() + assignmentsByDepartment.size());
         model.addAttribute("definitionSize", kpiDefinitions.size());
         model.addAttribute("departments", deptList);
         model.addAttribute("jobGrades", jobGrades);
@@ -231,76 +232,7 @@ public class KpiController {
     }
     @GetMapping("/fragments/kpi-assignments")
     public String getKpiAssignmentsFragment(Model model) {
-        List<KpiAssignment> assignments = kpiAssignmentService.getAllAssignments();
-
-        // Debug: print all assignments (original code, but safe now)
-        assignments.forEach(assignment -> {
-            JobStep step = assignment.getJobStep();
-            System.out.println(step != null ? step : "null");
-        });
-
-        // Filter out assignments with null jobStep for grouping by job step
-        List<JobStep> uniqueJobSteps = assignments.stream()
-                .map(KpiAssignment::getJobStep)
-                .filter(Objects::nonNull)               // exclude null job steps
-                .distinct()
-                .collect(Collectors.toList());
-
-        System.out.println("Unique Job Steps:");
-
-        Map<JobStep, List<KpiAssignmentResponseDTO>> assignmentsByJobStep = new LinkedHashMap<>();
-        for (JobStep jobStep : uniqueJobSteps) {
-            List<KpiAssignmentResponseDTO> jobStepKpis = kpiAssignmentService.getAssignmentsForEmployee(jobStep.getId());
-            assignmentsByJobStep.put(jobStep, jobStepKpis);
-        }
-
-        // Get unique departments (excluding null)
-        List<Department> uniqueDepartments = assignments.stream()
-                .map(KpiAssignment::getDepartment)
-                .filter(Objects::nonNull)
-                .distinct()
-                .collect(Collectors.toList());
-
-        Map<Department, List<KpiAssignmentResponseDTO>> assignmentsByDepartment = new LinkedHashMap<>();
-        for (Department dept : uniqueDepartments) {
-            List<KpiAssignmentResponseDTO> deptKpis =
-                    kpiAssignmentService.getAssignmentsForDepartment(dept.getId());
-            assignmentsByDepartment.put(dept, deptKpis);
-        }
-
-
-        // Get unique employees (excluding null)
-        List<Employee> uniqueEmployees = assignments.stream()
-                .map(KpiAssignment::getEmployee)
-                .filter(Objects::nonNull)
-                .distinct()
-                .collect(Collectors.toList());
-
-        // Build map of employee -> assignments
-        Map<Employee, List<KpiAssignmentResponseDTO>> assignmentsByEmployee = new LinkedHashMap<>();
-        for (Employee employee : uniqueEmployees) {
-            List<KpiAssignmentResponseDTO> employeeKpis = kpiAssignmentService.getAssignmentsForEmployee(employee.getId());
-            System.out.println("KpI's" + employeeKpis.size());
-            assignmentsByEmployee.put(employee, employeeKpis);
-        }
-
-        // Debug output (safe now)
-        assignmentsByEmployee.forEach((employee, kpis) -> {
-            System.out.println("Employee: " + employee.getFirstName() + " " + employee.getLastName());
-            kpis.forEach(kpi -> System.out.println("  KPI: " + kpi.getName()));
-        });
-
-        assignmentsByJobStep.forEach(
-                (jobStep, kpis) -> {
-                    System.out.println("Job Step: " + jobStep.getJobGrade().getName());
-                    kpis.forEach(kpi -> System.out.println("  KPI: " + kpi.getName()));
-                }
-        );
-
-        model.addAttribute("assignmentsByEmployee", assignmentsByEmployee);
-        model.addAttribute("assignmentsByJobStep", assignmentsByJobStep);
-        model.addAttribute("assignmentsByDepartment", assignmentsByDepartment);
-        model.addAttribute("employmentSize", assignmentsByEmployee.size()+ assignmentsByJobStep.size());
+        populateAssignmentFragmentModel(model);
         return "kpi/fragment/kpi-assignments-fragment";
     }
 
@@ -318,81 +250,49 @@ public class KpiController {
         kpiAssignmentService.bulkAssign(request);
         System.out.println("=================================");
         System.out.println("Received KPI Assignment Request: " + request);
-        List<KpiAssignment> assignments = kpiAssignmentService.getAllAssignments();
-
-        // Debug: print all assignments (original code, but safe now)
-        assignments.forEach(assignment -> {
-            JobStep step = assignment.getJobStep();
-            System.out.println(step != null ? step : "null");
-        });
-
-        // Filter out assignments with null jobStep for grouping by job step
-        List<JobStep> uniqueJobSteps = assignments.stream()
-                .map(KpiAssignment::getJobStep)
-                .filter(Objects::nonNull)               // exclude null job steps
-                .distinct()
-                .collect(Collectors.toList());
-
-        System.out.println("Unique Job Steps:");
-
-        Map<JobStep, List<KpiAssignmentResponseDTO>> assignmentsByJobStep = new LinkedHashMap<>();
-        for (JobStep jobStep : uniqueJobSteps) {
-            List<KpiAssignmentResponseDTO> jobStepKpis = kpiAssignmentService.getAssignmentsForEmployee(jobStep.getId());
-            assignmentsByJobStep.put(jobStep, jobStepKpis);
-        }
-
-        // Get unique departments (excluding null)
-        List<Department> uniqueDepartments = assignments.stream()
-                .map(KpiAssignment::getDepartment)
-                .filter(Objects::nonNull)
-                .distinct()
-                .collect(Collectors.toList());
-
-        Map<Department, List<KpiAssignmentResponseDTO>> assignmentsByDepartment = new LinkedHashMap<>();
-        for (Department dept : uniqueDepartments) {
-            List<KpiAssignmentResponseDTO> deptKpis =
-                    kpiAssignmentService.getAssignmentsForDepartment(dept.getId());
-            assignmentsByDepartment.put(dept, deptKpis);
-        }
-
-
-        // Get unique employees (excluding null)
-        List<Employee> uniqueEmployees = assignments.stream()
-                .map(KpiAssignment::getEmployee)
-                .filter(Objects::nonNull)
-                .distinct()
-                .collect(Collectors.toList());
-
-        // Build map of employee -> assignments
-        Map<Employee, List<KpiAssignmentResponseDTO>> assignmentsByEmployee = new LinkedHashMap<>();
-        for (Employee employee : uniqueEmployees) {
-            List<KpiAssignmentResponseDTO> employeeKpis = kpiAssignmentService.getAssignmentsForEmployee(employee.getId());
-            assignmentsByEmployee.put(employee, employeeKpis);
-        }
-
-        // Debug output (safe now)
-        assignmentsByEmployee.forEach((employee, kpis) -> {
-            System.out.println("Employee: " + employee.getFirstName() + " " + employee.getLastName());
-            kpis.forEach(kpi -> System.out.println("  KPI: " + kpi.getName()));
-        });
-
-        assignmentsByJobStep.forEach(
-                (jobStep, kpis) -> {
-                    System.out.println("Job Step: " + jobStep.getJobGrade().getName());
-                    kpis.forEach(kpi -> System.out.println("  KPI: " + kpi.getName()));
-                }
-        );
-
-        model.addAttribute("assignmentsByEmployee", assignmentsByEmployee);
-        model.addAttribute("assignmentsByJobStep", assignmentsByJobStep);
-        model.addAttribute("assignmentsByDepartment", assignmentsByDepartment);
-        model.addAttribute("employmentSize", assignmentsByEmployee.size()+ assignmentsByJobStep.size());
+        populateAssignmentFragmentModel(model);
         // Return the fragment to reload the assignments tab
         return "kpi/fragment/kpi-assignments-fragment";
     }
+
+    @GetMapping("/kpi/assignments/{type}/{id}")
+    @ResponseBody
+    public List<KpiAssignmentResponseDTO> getKpiAssignmentsForEdit(
+            @PathVariable String type,
+            @PathVariable Long id
+    ) {
+        return kpiAssignmentService.getDirectAssignments(type, id);
+    }
+
+    @PostMapping("/kpi/assignments/{type}/{id}/update")
+    public String updateKpiAssignments(
+            @PathVariable String type,
+            @PathVariable Long id,
+            KpiBulkAssignmentRequestDTO request,
+            Model model
+    ) {
+        kpiAssignmentService.replaceAssignments(type, id, request);
+        populateAssignmentFragmentModel(model);
+        return "kpi/fragment/kpi-assignments-fragment";
+    }
+
+    @PostMapping("/kpi/assignments/{type}/{id}/delete")
+    public String deleteKpiAssignments(
+            @PathVariable String type,
+            @PathVariable Long id,
+            Model model
+    ) {
+        kpiAssignmentService.deleteAssignments(type, id);
+        populateAssignmentFragmentModel(model);
+        return "kpi/fragment/kpi-assignments-fragment";
+    }
+
     @GetMapping("/kpi/measurements/form-items")
     public String getMeasurementFormItems(@RequestParam Long employeeId, Model model) {
-        List<KpiAssignmentResponseDTO> kpiDefinition = kpiAssignmentService.getAssignmentsForEmployee(employeeId);
+        List<KpiAssignmentResponseDTO> kpiDefinition = kpiAssignmentService.getAssignmentsForEmployee(employeeId)
+                .stream()
+                .filter(kpi -> !kpi.isParentKpi())
+                .collect(Collectors.toList());
         System.out.println("Received request for measurement form items for employee ID: " + employeeId);
 
         kpiDefinition.forEach(
@@ -471,7 +371,7 @@ public class KpiController {
 
         Map<JobStep, List<KpiAssignmentResponseDTO>> assignmentsByJobStep = new LinkedHashMap<>();
         for (JobStep jobStep : uniqueJobSteps) {
-            List<KpiAssignmentResponseDTO> jobStepKpis = kpiAssignmentService.getAssignmentsForEmployee(jobStep.getId());
+            List<KpiAssignmentResponseDTO> jobStepKpis = kpiAssignmentService.getAssignmentsForJobStep(jobStep.getId());
             assignmentsByJobStep.put(jobStep, jobStepKpis);
         }
 
@@ -502,6 +402,12 @@ public class KpiController {
                     kpis.forEach(kpi -> System.out.println("  KPI: " + kpi.getName()));
                 }
         );
+
+        List<Department> uniqueDepartments = assignments.stream()
+                .map(KpiAssignment::getDepartment)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
 
         List<FlowableTaskDTO> tasks =
                 flowableTaskService.getTasksForAssignee(
@@ -558,11 +464,76 @@ public class KpiController {
         model.addAttribute("managerPendingAppraisals", managerPending);
         model.addAttribute("assignmentsByEmployee", assignmentsByEmployee.size());
         model.addAttribute("assignmentsByJobStep", assignmentsByJobStep.size());
-        model.addAttribute("totalAssignments",assignmentsByEmployee.size() + assignmentsByJobStep.size());
+        model.addAttribute("totalAssignments",assignmentsByEmployee.size() + assignmentsByJobStep.size() + uniqueDepartments.size());
         model.addAttribute("definitionSize", kpiDefinitions.size());
         // Return the fragment (the part inside th:fragment="stats-cards")
         return "kpi/fragment/stats-cards :: stats-cards";
     }
+
+    private void populateAssignmentFragmentModel(Model model) {
+        List<KpiAssignment> assignments = kpiAssignmentService.getAllAssignments();
+
+        List<JobStep> uniqueJobSteps = assignments.stream()
+                .map(KpiAssignment::getJobStep)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<JobStep, List<KpiAssignmentResponseDTO>> assignmentsByJobStep = new LinkedHashMap<>();
+        Map<JobStep, BigDecimal> jobStepEffectiveWeights = new LinkedHashMap<>();
+        for (JobStep jobStep : uniqueJobSteps) {
+            List<KpiAssignmentResponseDTO> jobStepKpis = kpiAssignmentService.getDirectAssignments("grade", jobStep.getId());
+            assignmentsByJobStep.put(jobStep, jobStepKpis);
+            jobStepEffectiveWeights.put(
+                    jobStep,
+                    kpiAssignmentService.calculateEffectiveTotalWeightFromResponses(jobStepKpis)
+            );
+        }
+
+        List<Department> uniqueDepartments = assignments.stream()
+                .map(KpiAssignment::getDepartment)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<Department, List<KpiAssignmentResponseDTO>> assignmentsByDepartment = new LinkedHashMap<>();
+        Map<Department, BigDecimal> departmentEffectiveWeights = new LinkedHashMap<>();
+        for (Department dept : uniqueDepartments) {
+            List<KpiAssignmentResponseDTO> deptKpis =
+                    kpiAssignmentService.getDirectAssignments("department", dept.getId());
+            assignmentsByDepartment.put(dept, deptKpis);
+            departmentEffectiveWeights.put(
+                    dept,
+                    kpiAssignmentService.calculateEffectiveTotalWeightFromResponses(deptKpis)
+            );
+        }
+
+        List<Employee> uniqueEmployees = assignments.stream()
+                .map(KpiAssignment::getEmployee)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<Employee, List<KpiAssignmentResponseDTO>> assignmentsByEmployee = new LinkedHashMap<>();
+        Map<Employee, BigDecimal> employeeEffectiveWeights = new LinkedHashMap<>();
+        for (Employee employee : uniqueEmployees) {
+            List<KpiAssignmentResponseDTO> employeeKpis = kpiAssignmentService.getDirectAssignments("employee", employee.getId());
+            assignmentsByEmployee.put(employee, employeeKpis);
+            employeeEffectiveWeights.put(
+                    employee,
+                    kpiAssignmentService.calculateEffectiveTotalWeightFromResponses(employeeKpis)
+            );
+        }
+
+        model.addAttribute("assignmentsByEmployee", assignmentsByEmployee);
+        model.addAttribute("assignmentsByJobStep", assignmentsByJobStep);
+        model.addAttribute("assignmentsByDepartment", assignmentsByDepartment);
+        model.addAttribute("employeeEffectiveWeights", employeeEffectiveWeights);
+        model.addAttribute("jobStepEffectiveWeights", jobStepEffectiveWeights);
+        model.addAttribute("departmentEffectiveWeights", departmentEffectiveWeights);
+        model.addAttribute("employmentSize", assignmentsByEmployee.size() + assignmentsByJobStep.size() + assignmentsByDepartment.size());
+    }
+
     @GetMapping("/fragments/kpi-appraisal")
     public String getAppraisalFragment(Model model) {
 
@@ -766,10 +737,10 @@ public class KpiController {
     @GetMapping("/kpi/measurements/csv-template")
     public ResponseEntity<ByteArrayResource> downloadCsvTemplate() {
 
-        String csv = "employeeId,actualValue\n" +
-                "12,85.00\n" +
-                "14,92.50\n" +
-                "17,100.00\n";
+        String csv = "email,actualValue\n" +
+                "jane.doe@justjava.com,85.00\n" +
+                "john.smith@justjava.com,92.50\n" +
+                "mary.jones@justjava.com,100.00\n";
 
         byte[] bytes = csv.getBytes(java.nio.charset.StandardCharsets.UTF_8);
 

@@ -16,7 +16,8 @@ public class AuthenticationManager {
     public Object get(String fieldName) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null) return null;
-        DefaultOidcUser defaultOidcUser = (DefaultOidcUser) authentication.getPrincipal();
+        if (!(authentication.getPrincipal() instanceof DefaultOidcUser defaultOidcUser)) return null;
+//        System.out.println(" The token here =="+defaultOidcUser.getClaims());
         return defaultOidcUser.getClaims().get(fieldName);
     }
 
@@ -57,10 +58,35 @@ public class AuthenticationManager {
     public boolean isRestrictedHr() {
         return normalizedGroups().contains("restrictedhr");
     }
+    public boolean isHiringManager() {
+        return normalizedGroups().contains("hiringmanager");
+    }
 
     public Object getAllAttributes() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        DefaultOidcUser defaultOidcUser = (DefaultOidcUser) authentication.getPrincipal();
+        if (authentication == null || !(authentication.getPrincipal() instanceof DefaultOidcUser defaultOidcUser)) return null;
         return defaultOidcUser.getClaims();
+    }
+
+    public String getCurrentUserEmail() {
+        Object email = this.get("preferred_username");
+        if (email == null) {
+            email = this.get("email");
+        }
+        return email != null ? email.toString() : null;
+    }
+
+    public String getCurrentUserName() {
+        Object name = this.get("name");
+        if (name == null) {
+            String given = (String) this.get("given_name");
+            String family = (String) this.get("family_name");
+            if (given != null && family != null) {
+                name = given + " " + family;
+            } else if (given != null) {
+                name = given;
+            }
+        }
+        return name != null ? name.toString() : getCurrentUserEmail();
     }
 }

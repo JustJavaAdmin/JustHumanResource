@@ -17,6 +17,10 @@
 	<properties>
 		<java.version>21</java.version>
 		<spring-cloud.version>2025.0.0</spring-cloud.version>
+		<microsoft-graph.version>6.67.0</microsoft-graph.version>
+		<azure-identity.version>1.18.5</azure-identity.version>
+		<google-cloud-meet.version>0.60.0</google-cloud-meet.version>
+		<google-auth-library-oauth2-http.version>1.37.1</google-auth-library-oauth2-http.version>
 	</properties>
 	<dependencyManagement>
 		<dependencies>
@@ -42,6 +46,26 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-oauth2-client</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.microsoft.graph</groupId>
+			<artifactId>microsoft-graph</artifactId>
+			<version>${microsoft-graph.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.azure</groupId>
+			<artifactId>azure-identity</artifactId>
+			<version>${azure-identity.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-meet</artifactId>
+			<version>${google-cloud-meet.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.auth</groupId>
+			<artifactId>google-auth-library-oauth2-http</artifactId>
+			<version>${google-auth-library-oauth2-http.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -91,14 +115,18 @@
 			<version>7.1.0</version>
 		</dependency>
 		<dependency>
-			<groupId>com.resend</groupId>
-			<artifactId>resend-java</artifactId>
-			<version>4.13.0</version>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.pdfbox</groupId>
 			<artifactId>pdfbox</artifactId>
 			<version>2.0.24</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml</artifactId>
+			<version>5.3.0</version>
 		</dependency>
 
 		<!-- Nashorn JavaScript Engine (JDK 8-14) -->
@@ -146,6 +174,11 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -206,7 +239,7 @@
                         <image>eclipse-temurin:21-jre-jammy</image>
                     </from>
                     <to>
-                        <image>kazeemakinrinde/csims</image>
+                        <image>kazeemakinrinde/justhumanresourceqa</image>
                         <!-- Remove hardcoded credentials -->
                         <!-- <auth>...</auth> -->
                     </to>

@@ -1,0 +1,4202 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <meta charset="UTF-8">
+    <title layout:fragment="title">Communication</title>
+
+    <style>
+        /* =========================================================
+           JustHR Communication Workspace — refined broadcasts & comments
+           ========================================================= */
+
+        .hr-comm {
+            --hc-border: #e7e9ee;
+            --hc-muted: #737b8c;
+            --hc-text: #182033;
+            --hc-surface: #ffffff;
+            --hc-soft: #f7f8fa;
+            --hc-hover: #f3f6fb;
+            --hc-blue: #2563eb;
+            --hc-blue-soft: #eff6ff;
+            --hc-green: #16a34a;
+            --hc-emerald: #10b981;
+            --hc-red: #dc2626;
+            --hc-amber: #f59e0b;
+            --hc-radius: 12px;
+            --hc-shadow: 0 4px 24px rgba(15, 23, 42, .06);
+            --hc-shadow-lg: 0 12px 40px rgba(15, 23, 42, .10);
+            color: var(--hc-text);
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        .dark .hr-comm {
+            --hc-border: #303746;
+            --hc-muted: #9ca3af;
+            --hc-text: #f3f4f6;
+            --hc-surface: #1f2937;
+            --hc-soft: #111827;
+            --hc-hover: #273449;
+            --hc-blue-soft: #172554;
+            --hc-emerald: #10b981;
+            --hc-shadow: 0 4px 24px rgba(0, 0, 0, .3);
+            --hc-shadow-lg: 0 12px 40px rgba(0, 0, 0, .4);
+        }
+
+        .comm-shell {
+            flex: 1;
+            min-height: 0;
+            display: grid;
+            grid-template-columns: 232px minmax(280px, 360px) minmax(0, 1fr);
+            overflow: hidden;
+            border: none;
+            border-radius: var(--hc-radius);
+            background: var(--hc-surface);
+            box-shadow: var(--hc-shadow);
+        }
+
+        .comm-shell>* {
+            min-width: 0;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .comm-shell ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        .comm-shell ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .comm-shell ::-webkit-scrollbar-thumb {
+            background: var(--hc-border);
+            border-radius: 999px;
+        }
+        .comm-shell ::-webkit-scrollbar-thumb:hover {
+            background: var(--hc-muted);
+        }
+
+        /* ── navigation ── */
+        .comm-nav {
+            border-right: 1px solid var(--hc-border);
+            padding: 16px 12px 12px;
+            overflow-y: auto;
+            background: var(--hc-surface);
+        }
+
+        .nav-heading {
+            padding: 0 10px 14px;
+        }
+        .nav-heading h1 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: -.01em;
+        }
+        .nav-heading p {
+            margin: 2px 0 0;
+            color: var(--hc-muted);
+            font-size: 11px;
+        }
+
+        .nav-section-title {
+            padding: 18px 10px 6px;
+            color: var(--hc-muted);
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            font-size: 9px;
+            font-weight: 800;
+        }
+
+        .nav-link {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--hc-text);
+            padding: 8px 10px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background .15s, color .15s;
+        }
+        .nav-link:hover {
+            background: var(--hc-hover);
+            color: var(--hc-blue);
+        }
+        .nav-link.active {
+            background: var(--hc-blue-soft);
+            color: var(--hc-blue);
+            font-weight: 600;
+        }
+        .nav-link .material-icons-round {
+            font-size: 18px;
+            color: var(--hc-muted);
+            flex: none;
+            transition: color .15s;
+        }
+        .nav-link.active .material-icons-round {
+            color: var(--hc-blue);
+        }
+        .nav-link:hover .material-icons-round {
+            color: var(--hc-blue);
+        }
+
+        .nav-count {
+            margin-left: auto;
+            min-width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            background: #eef1f5;
+            color: #697386;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 0 6px;
+        }
+        .dark .nav-count {
+            background: #374151;
+            color: #d1d5db;
+        }
+        .nav-link.active .nav-count {
+            background: var(--hc-blue);
+            color: #fff;
+        }
+
+        .nav-online-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            transition: background .1s;
+            cursor: pointer;
+        }
+        .nav-online-row:hover {
+            background: var(--hc-hover);
+        }
+        .nav-online-row .mini-avatar {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: var(--hc-blue-soft);
+            color: var(--hc-blue);
+            font-weight: 700;
+            font-size: 8px;
+            flex: none;
+        }
+        .nav-online-row .mini-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--hc-green);
+            margin-left: auto;
+            flex: none;
+        }
+
+        .nav-user {
+            margin-top: 18px;
+            padding: 10px 8px;
+            border-top: 1px solid var(--hc-border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .nav-user-avatar {
+            width: 30px;
+            height: 30px;
+            flex: none;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            font-weight: 700;
+            color: #fff;
+            background: #e28b49;
+            font-size: 10px;
+        }
+        .nav-user-name {
+            min-width: 0;
+        }
+        .nav-user-name strong,
+        .nav-user-name span {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .nav-user-name strong {
+            font-size: 11px;
+        }
+        .nav-user-name span {
+            margin-top: 1px;
+            color: var(--hc-muted);
+            font-size: 9px;
+        }
+
+        /* ── Direct Messaging View ── */
+        .comm-list {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--hc-border);
+            background: var(--hc-surface);
+        }
+
+        .list-header {
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--hc-border);
+            flex-shrink: 0;
+        }
+        .list-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+        .list-title-row h2 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: -.01em;
+        }
+        .icon-btn {
+            width: 30px;
+            height: 30px;
+            display: grid;
+            place-items: center;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--hc-muted);
+            cursor: pointer;
+            transition: background .15s, color .15s, border-color .15s;
+        }
+        .icon-btn:hover {
+            color: var(--hc-blue);
+            background: var(--hc-blue-soft);
+            border-color: var(--hc-blue);
+        }
+
+        .search-box {
+            position: relative;
+            margin-top: 10px;
+        }
+        .search-box .material-icons-round {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9aa2b1;
+            font-size: 16px;
+        }
+        .comm-search {
+            width: 100%;
+            border: 1px solid var(--hc-border);
+            background: var(--hc-soft);
+            color: var(--hc-text);
+            border-radius: 8px;
+            padding: 8px 10px 8px 34px;
+            font-size: 11px;
+            outline: none;
+            transition: border-color .2s, background .2s;
+        }
+        .comm-search:focus {
+            border-color: #93c5fd;
+            background: var(--hc-surface);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .06);
+        }
+
+        .list-tabs {
+            display: flex;
+            gap: 2px;
+            margin-top: 10px;
+        }
+        .list-tab {
+            border: 0;
+            background: transparent;
+            color: var(--hc-muted);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .15s, color .15s;
+        }
+        .list-tab.active {
+            color: var(--hc-text);
+            background: var(--hc-soft);
+        }
+        .list-tab:hover:not(.active) {
+            background: var(--hc-hover);
+        }
+
+        #directPeopleRows {
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .direct-person {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 10px 14px;
+            border: 0;
+            border-bottom: 1px solid var(--hc-border);
+            background: var(--hc-surface);
+            color: var(--hc-text);
+            text-align: left;
+            cursor: pointer;
+            transition: background .12s;
+        }
+        .direct-person:hover {
+            background: var(--hc-hover);
+        }
+        .direct-person.active {
+            background: var(--hc-blue-soft);
+            border-left: 3px solid var(--hc-blue);
+        }
+        .person-avatar {
+            width: 34px;
+            height: 34px;
+            flex: none;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            font-weight: 700;
+            background: var(--hc-blue-soft);
+            color: var(--hc-blue);
+            font-size: 10px;
+        }
+        .person-copy {
+            min-width: 0;
+            flex: 1;
+        }
+        .person-top,
+        .person-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+        .person-name,
+        .person-preview {
+            margin: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .person-name {
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .person-preview {
+            margin-top: 2px;
+            color: var(--hc-muted);
+            font-size: 10px;
+        }
+        .person-time {
+            color: #9aa2b1;
+            font-size: 8px;
+            flex: none;
+        }
+        .presence-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #aeb6c3;
+            border: 2px solid var(--hc-surface);
+            position: absolute;
+            right: -2px;
+            bottom: -2px;
+        }
+        .presence-dot.online {
+            background: var(--hc-green);
+        }
+        .unread-badge {
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            background: var(--hc-red);
+            color: #fff;
+            font-size: 8px;
+            font-weight: 800;
+        }
+
+        /* ── chat area ── */
+        .comm-chat {
+            display: flex;
+            flex-direction: column;
+            background: var(--hc-soft);
+        }
+
+        .chat-topbar {
+            height: 60px;
+            flex: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 18px;
+            border-bottom: 1px solid var(--hc-border);
+            background: var(--hc-surface);
+        }
+        .chat-person {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+        .chat-avatar {
+            width: 34px;
+            height: 34px;
+            flex: none;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            font-weight: 700;
+            background: var(--hc-blue-soft);
+            color: var(--hc-blue);
+            font-size: 11px;
+        }
+        .chat-person h3 {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .chat-person p {
+            margin: 1px 0 0;
+            color: var(--hc-muted);
+            font-size: 9px;
+        }
+        .chat-actions {
+            display: flex;
+            gap: 4px;
+        }
+        .chat-actions .icon-btn {
+            border: 0;
+        }
+
+        .direct-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+            background:
+                    radial-gradient(circle at 50% 0%, rgba(37, 99, 235, .035), transparent 45%),
+                    var(--hc-soft);
+        }
+
+        /* ── Message bubbles with proper background colours ── */
+        .message-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .message-row.mine {
+            justify-content: flex-end;
+        }
+
+        .message-mini-avatar {
+            width: 28px;
+            height: 28px;
+            flex: none;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: var(--hc-blue-soft);
+            color: var(--hc-blue);
+            font-size: 8px;
+            font-weight: 700;
+            border: 1px solid var(--hc-border);
+        }
+        .message-row.mine .message-mini-avatar {
+            display: none;
+        }
+
+        .message-stack {
+            max-width: min(78%, 600px);
+            display: flex;
+            flex-direction: column;
+        }
+        .message-row.mine .message-stack {
+            align-items: flex-end;
+        }
+
+        .message-author {
+            display: none;
+            margin: 0 0 3px 3px;
+            color: var(--hc-muted);
+            font-size: 9px;
+            font-weight: 700;
+        }
+        .message-row.mine .message-author {
+            display: none;
+        }
+
+        /* The actual bubble – background colours applied here */
+        .message-bubble {
+            border: 1px solid var(--hc-border);
+            background: var(--hc-surface);
+            color: var(--hc-text);
+            border-radius: 14px 14px 14px 4px;
+            padding: 10px 16px;
+            font-size: 13px;
+            line-height: 1.55;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            white-space: pre-wrap;      /* ← FIX: preserve \n line breaks in messages */
+            transition: background .15s;
+        }
+
+        /* Sent messages (mine) – blue background, white text */
+        .message-row.mine .message-bubble {
+            border-color: var(--hc-blue);
+            background: var(--hc-blue);
+            color: #fff;
+            border-radius: 14px 14px 4px 14px;
+        }
+
+        /* Dark mode adjustments */
+        .dark .message-bubble {
+            border-color: var(--hc-border);
+            background: var(--hc-surface);
+            color: var(--hc-text);
+        }
+        .dark .message-row.mine .message-bubble {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #fff;
+        }
+
+        .message-meta {
+            margin-top: 4px;
+            color: #9aa2b1;
+            font-size: 9px;
+            font-weight: 500;
+            padding: 0 3px;
+        }
+        .message-row.mine .message-meta {
+            color: rgba(255, 255, 255, .55);
+            text-align: right;
+        }
+        .dark .message-row.mine .message-meta {
+            color: rgba(255, 255, 255, .45);
+        }
+
+        .message-bubble + .attachment-list {
+            margin-top: 8px;
+        }
+
+        .message-composer {
+            flex: none;
+            padding: 10px 16px 14px;
+            border-top: 1px solid var(--hc-border);
+            background: var(--hc-surface);
+        }
+        .composer-shell {
+            display: flex;
+            align-items: flex-end;
+            gap: 6px;
+            border: 1px solid var(--hc-border);
+            border-radius: 10px;
+            background: var(--hc-soft);
+            padding: 4px 4px 4px 12px;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .composer-shell:focus-within {
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .08);
+        }
+        .composer-input {
+            flex: 1;
+            min-width: 0;
+            max-height: 100px;
+            border: 0;
+            outline: none;
+            resize: none;
+            background: transparent;
+            color: var(--hc-text);
+            padding: 8px 2px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .composer-input::placeholder {
+            color: var(--hc-muted);
+        }
+        .composer-button {
+            width: 32px;
+            height: 32px;
+            flex: none;
+            display: grid;
+            place-items: center;
+            border: 0;
+            border-radius: 8px;
+            color: var(--hc-muted);
+            background: transparent;
+            cursor: pointer;
+            transition: background .15s, color .15s;
+        }
+        .composer-button:hover {
+            background: var(--hc-surface);
+            color: var(--hc-blue);
+        }
+        .composer-send {
+            color: #fff;
+            background: var(--hc-blue);
+            border-radius: 8px;
+        }
+        .composer-send:hover {
+            color: #fff;
+            background: #1d4ed8;
+        }
+        .composer-send:disabled {
+            opacity: .4;
+            pointer-events: none;
+        }
+
+        .attachment-tray {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 6px 16px 2px;
+        }
+        .attachment-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            max-width: 200px;
+            border: 1px solid var(--hc-border);
+            border-radius: 999px;
+            padding: 3px 8px 3px 6px;
+            font-size: 9px;
+            background: var(--hc-soft);
+        }
+        .attachment-pill .material-icons-round {
+            font-size: 14px;
+        }
+
+        .attachment-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 6px;
+        }
+        .attachment-link {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid var(--hc-border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            background: var(--hc-soft);
+            color: inherit;
+            font-size: 10px;
+            text-decoration: none;
+            transition: background .15s;
+        }
+        .attachment-link:hover {
+            background: var(--hc-hover);
+        }
+
+        /* ── Empty State Styles ── */
+        .empty-state {
+            display: grid;
+            place-items: center;
+            text-align: center;
+            padding: 24px;
+            color: var(--hc-muted);
+            border: 1px dashed var(--hc-border);
+            border-radius: 12px;
+            background: var(--hc-soft);
+            margin: 0;
+            min-height: 240px;
+        }
+        .empty-state .material-icons-round {
+            font-size: 48px;
+            opacity: .25;
+            margin-bottom: 8px;
+        }
+        .empty-state p {
+            margin: 4px 0;
+        }
+        .empty-state p:first-of-type {
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--hc-text);
+        }
+        .empty-state p:last-of-type {
+            font-size: 12px;
+            color: var(--hc-muted);
+        }
+
+        /* ═══════════════════════════════════════════════
+           BROADCAST VIEW — improved styling
+           ═══════════════════════════════════════════════ */
+        .broadcast-view {
+            display: none;
+            grid-column: 2 / 4;
+            grid-template-columns: minmax(280px, 360px) 1fr;
+            overflow: hidden;
+            background: var(--hc-surface);
+            border-left: none;
+        }
+        .broadcast-view.active {
+            display: grid;
+        }
+
+        /* ── broadcast list ── */
+        .broadcast-list {
+            border-right: 1px solid var(--hc-border);
+            overflow-y: auto;
+            background: var(--hc-surface);
+        }
+        .broadcast-list-header {
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--hc-border);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .broadcast-list-header h2 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: -.01em;
+        }
+
+        .broadcast-item {
+            position: relative;
+            padding: 14px 16px;
+            margin: 6px 10px;
+            border-radius: var(--hc-radius);
+            border: 1px solid var(--hc-border);
+            background: var(--hc-surface);
+            cursor: pointer;
+            transition: all .18s ease;
+        }
+        .broadcast-item:hover {
+            background: var(--hc-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--hc-shadow);
+            border-color: var(--hc-blue);
+        }
+        .broadcast-item.active {
+            background: var(--hc-blue-soft);
+            border-color: var(--hc-blue);
+            border-left: 4px solid var(--hc-blue);
+            box-shadow: 0 2px 12px rgba(37, 99, 235, .12);
+        }
+        .broadcast-item-title {
+            font-weight: 700;
+            font-size: 13px;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .broadcast-item-meta {
+            font-size: 11px;
+            color: var(--hc-muted);
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .broadcast-item-meta .author-name {
+            font-weight: 600;
+            color: var(--hc-text);
+        }
+        .broadcast-item-stats {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .broadcast-item-stats .metric-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            border-radius: 999px;
+            padding: 2px 10px 2px 8px;
+            font-size: 10px;
+            font-weight: 600;
+            background: var(--hc-soft);
+            color: var(--hc-muted);
+            border: 1px solid var(--hc-border);
+            transition: all .12s;
+        }
+        .broadcast-item-stats .metric-pill .material-icons-round {
+            font-size: 13px;
+        }
+        .broadcast-item-stats .metric-pill.highlight {
+            background: var(--hc-blue-soft);
+            color: var(--hc-blue);
+            border-color: var(--hc-blue);
+        }
+
+        /* ── broadcast detail ── */
+        .broadcast-detail {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--hc-soft);
+        }
+
+        .broadcast-detail-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--hc-border);
+            background: var(--hc-surface);
+            flex-shrink: 0;
+        }
+        .broadcast-detail-header h3 {
+            margin: 0;
+            font-size: 17px;
+            font-weight: 800;
+            letter-spacing: -.01em;
+            line-height: 1.3;
+        }
+        .broadcast-detail-header p {
+            margin: 4px 0 0;
+            font-size: 11px;
+            color: var(--hc-muted);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .broadcast-detail-header .detail-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border-radius: 999px;
+            padding: 1px 10px 1px 8px;
+            font-size: 10px;
+            font-weight: 600;
+            background: var(--hc-soft);
+            color: var(--hc-muted);
+            border: 1px solid var(--hc-border);
+        }
+        .broadcast-detail-header .detail-badge .material-icons-round {
+            font-size: 13px;
+        }
+
+        /* ── broadcast detail body ── */
+        .broadcast-detail-body {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+        }
+
+        /* ── empty state inside broadcast detail ── */
+        #broadcastEmptyState {
+            flex: 1;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            padding: 24px;
+            margin: 0;
+            border: 1px dashed var(--hc-border);
+            border-radius: 12px;
+            background: var(--hc-soft);
+            min-height: 0;
+        }
+        #broadcastEmptyState .material-icons-round {
+            font-size: 48px;
+            opacity: .25;
+            margin-bottom: 8px;
+        }
+        #broadcastEmptyState p {
+            margin: 4px 0;
+        }
+        #broadcastEmptyState p:first-of-type {
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--hc-text);
+        }
+        #broadcastEmptyState p:last-of-type {
+            font-size: 12px;
+            color: var(--hc-muted);
+        }
+
+        /* ── broadcast content container ── */
+        #broadcastContentContainer {
+            flex: 1;
+            display: none;
+        }
+        #broadcastContentContainer[style*="display:block"] {
+            display: block !important;
+        }
+
+        .broadcast-detail-body .content {
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--hc-text);
+            background: var(--hc-surface);
+            padding: 16px 20px;
+            border-radius: var(--hc-radius);
+            border: 1px solid var(--hc-border);
+        }
+
+        .broadcast-detail-body .detail-attachments {
+            margin-top: 14px;
+        }
+        .broadcast-detail-body .detail-attachments .attachment-link {
+            background: var(--hc-surface);
+            border: 1px solid var(--hc-border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            transition: all .12s;
+        }
+        .broadcast-detail-body .detail-attachments .attachment-link:hover {
+            border-color: var(--hc-blue);
+            background: var(--hc-blue-soft);
+        }
+
+        /* ── comments section ── */
+        .broadcast-detail-body .comments-section {
+            margin-top: 20px;
+            border-top: 1px solid var(--hc-border);
+            padding-top: 16px;
+        }
+        .broadcast-detail-body .comments-section .section-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: var(--hc-muted);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .broadcast-detail-body .comments-section .section-label .material-icons-round {
+            font-size: 16px;
+        }
+        .broadcast-detail-body .comments-section .section-label .count-badge {
+            background: var(--hc-border);
+            color: var(--hc-muted);
+            border-radius: 999px;
+            padding: 0 8px;
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+        .broadcast-detail-body .comment {
+            display: flex;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--hc-border);
+            animation: commentSlide .2s ease;
+        }
+        .broadcast-detail-body .comment:last-child {
+            border-bottom: 0;
+        }
+        @keyframes commentSlide {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .broadcast-detail-body .comment-avatar {
+            width: 32px;
+            height: 32px;
+            flex: none;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 10px;
+            background: var(--hc-blue-soft);
+            color: var(--hc-blue);
+            border: 1px solid var(--hc-border);
+        }
+        .broadcast-detail-body .comment-body {
+            min-width: 0;
+            flex: 1;
+        }
+        .broadcast-detail-body .comment-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .broadcast-detail-body .comment-author {
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--hc-text);
+        }
+        .broadcast-detail-body .comment-time {
+            font-size: 10px;
+            color: var(--hc-muted);
+        }
+        .broadcast-detail-body .comment-text {
+            font-size: 12.5px;
+            line-height: 1.5;
+            margin-top: 3px;
+            color: var(--hc-text);
+            word-wrap: break-word;
+            white-space: pre-wrap;      /* ← FIX: preserve \n line breaks in comments */
+        }
+
+        /* ── broadcast create form ── */
+        .broadcast-create {
+            flex-shrink: 0;
+            padding: 14px 20px;
+            border-top: 1px solid var(--hc-border);
+            background: var(--hc-surface);
+        }
+        .broadcast-create .form-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .broadcast-create .form-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        .broadcast-create .form-row .hr-input {
+            flex: 1;
+        }
+        .broadcast-create .form-row .hr-primary {
+            flex-shrink: 0;
+            height: 42px;
+            padding: 0 18px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .broadcast-create .form-row .hr-primary .material-icons-round {
+            font-size: 16px;
+        }
+        .broadcast-create .form-row .hr-primary:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        .broadcast-create .hr-input {
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 12px;
+            border: 1px solid var(--hc-border);
+            background: var(--hc-soft);
+            color: var(--hc-text);
+            outline: none;
+            transition: border-color .2s, box-shadow .2s, background .2s;
+            width: 100%;
+        }
+        .broadcast-create .hr-input:focus {
+            border-color: #93c5fd;
+            background: var(--hc-surface);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .06);
+        }
+        .broadcast-create .hr-input::placeholder {
+            color: var(--hc-muted);
+        }
+
+        .broadcast-create .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 4px 0 0;
+        }
+        .broadcast-create .toolbar .hr-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border: 1px solid var(--hc-border);
+            border-radius: 8px;
+            background: var(--hc-surface);
+            color: var(--hc-text);
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .15s, border-color .15s, color .15s;
+        }
+        .broadcast-create .toolbar .hr-secondary:hover {
+            background: var(--hc-hover);
+            border-color: var(--hc-blue);
+            color: var(--hc-blue);
+        }
+        .broadcast-create .toolbar .hr-secondary .material-icons-round {
+            font-size: 15px;
+        }
+        .broadcast-create .toolbar .status-text {
+            font-size: 10px;
+            color: var(--hc-muted);
+            margin-left: auto;
+        }
+        .broadcast-create .toolbar .status-text.success {
+            color: var(--hc-green);
+        }
+        .broadcast-create .toolbar .status-text.error {
+            color: var(--hc-red);
+        }
+
+        .broadcast-create .attachment-tray {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 4px 0 0;
+        }
+
+        /* ═══════════════════════════════════════════════
+           GROUPS VIEW — similar to broadcast view
+           ═══════════════════════════════════════════════ */
+        .groups-view {
+            display: none;
+            grid-column: 2 / 4;
+            grid-template-columns: minmax(280px, 360px) 1fr;
+            overflow: hidden;
+            background: var(--hc-surface);
+            border-left: none;
+        }
+        .groups-view.active {
+            display: grid;
+        }
+
+        /* ── groups list ── */
+        .groups-list {
+            border-right: 1px solid var(--hc-border);
+            overflow-y: auto;
+            background: var(--hc-surface);
+        }
+        .groups-list-header {
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--hc-border);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .groups-list-header h2 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: -.01em;
+        }
+
+        .group-item {
+            position: relative;
+            padding: 14px 16px;
+            margin: 6px 10px;
+            border-radius: var(--hc-radius);
+            border: 1px solid var(--hc-border);
+            background: var(--hc-surface);
+            cursor: pointer;
+            transition: all .18s ease;
+        }
+        .group-item:hover {
+            background: var(--hc-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--hc-shadow);
+            border-color: var(--hc-green);
+        }
+        .group-item.active {
+            background: var(--hc-blue-soft);
+            border-color: var(--hc-blue);
+            border-left: 4px solid var(--hc-blue);
+            box-shadow: 0 2px 12px rgba(37, 99, 235, .12);
+        }
+        .group-item-title {
+            font-weight: 700;
+            font-size: 13px;
+            line-height: 1.3;
+        }
+        .group-item-meta {
+            font-size: 11px;
+            color: var(--hc-muted);
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .group-item-meta .member-count {
+            font-weight: 600;
+            color: var(--hc-text);
+        }
+
+        /* ── group detail ── */
+        .group-detail {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--hc-soft);
+        }
+
+        .group-detail-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--hc-border);
+            background: var(--hc-surface);
+            flex-shrink: 0;
+        }
+        .group-detail-header h3 {
+            margin: 0;
+            font-size: 17px;
+            font-weight: 800;
+            letter-spacing: -.01em;
+            line-height: 1.3;
+        }
+        .group-detail-header p {
+            margin: 4px 0 0;
+            font-size: 11px;
+            color: var(--hc-muted);
+        }
+
+        .group-detail-body {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+        }
+
+        #groupEmptyState {
+            flex: 1;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            padding: 24px;
+            margin: 0;
+            border: 1px dashed var(--hc-border);
+            border-radius: 12px;
+            background: var(--hc-soft);
+            min-height: 0;
+        }
+        #groupEmptyState .material-icons-round {
+            font-size: 48px;
+            opacity: .25;
+            margin-bottom: 8px;
+        }
+        #groupEmptyState p {
+            margin: 4px 0;
+        }
+        #groupEmptyState p:first-of-type {
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--hc-text);
+        }
+        #groupEmptyState p:last-of-type {
+            font-size: 12px;
+            color: var(--hc-muted);
+        }
+
+        #groupContentContainer {
+            flex: 1;
+            display: none;
+        }
+        #groupContentContainer[style*="display:block"] {
+            display: block !important;
+        }
+
+        .group-detail-body .group-description {
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--hc-text);
+            background: var(--hc-surface);
+            padding: 16px 20px;
+            border-radius: var(--hc-radius);
+            border: 1px solid var(--hc-border);
+            margin-bottom: 20px;
+        }
+
+        .group-detail-body .members-section {
+            margin-top: 20px;
+            border-top: 1px solid var(--hc-border);
+            padding-top: 16px;
+        }
+        .group-detail-body .members-section .section-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: var(--hc-muted);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .group-detail-body .members-section .section-label .material-icons-round {
+            font-size: 16px;
+        }
+        .group-detail-body .members-section .count-badge {
+            background: var(--hc-border);
+            color: var(--hc-muted);
+            border-radius: 999px;
+            padding: 0 8px;
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+        .group-detail-body .group-member {
+            display: flex;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--hc-border);
+        }
+        .group-detail-body .group-member:last-child {
+            border-bottom: 0;
+        }
+        .group-detail-body .member-avatar {
+            width: 32px;
+            height: 32px;
+            flex: none;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 10px;
+            background: var(--hc-blue-soft);
+            color: var(--hc-blue);
+            border: 1px solid var(--hc-border);
+        }
+        .group-detail-body .member-info {
+            min-width: 0;
+            flex: 1;
+        }
+        .group-detail-body .member-name {
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--hc-text);
+        }
+        .group-detail-body .member-department {
+            font-size: 10px;
+            color: var(--hc-muted);
+            margin-top: 2px;
+        }
+
+        /* ═══════════════════════════════════════════════
+           MEETINGS VIEW — new
+           ═══════════════════════════════════════════════ */
+        .meetings-view {
+            display: none;
+            grid-column: 2 / 4;
+            overflow-y: auto;
+            background: var(--hc-surface);
+        }
+        .meetings-view.active {
+            display: block;
+        }
+
+        /* ── modals (for meetings & groups) ── */
+        .comm-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, .45);
+            backdrop-filter: blur(3px);
+            animation: fadeIn .2s ease;
+        }
+        .comm-modal.open {
+            display: flex;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(.97); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-card {
+            width: min(620px, 100%);
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid var(--hc-border);
+            border-radius: 14px;
+            background: var(--hc-surface);
+            box-shadow: 0 30px 70px -30px rgba(15, 23, 42, .5);
+        }
+        .modal-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--hc-border);
+        }
+        .modal-head h3 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 800;
+        }
+        .modal-body {
+            padding: 18px;
+        }
+        .form-field {
+            margin-bottom: 12px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--hc-muted);
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+        .hr-input {
+            width: 100%;
+            border: 1px solid var(--hc-border);
+            background: var(--hc-surface);
+            color: var(--hc-text);
+            border-radius: 8px;
+            padding: 9px 11px;
+            font-size: 12px;
+            outline: none;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .hr-input:focus {
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .08);
+        }
+        .hr-primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            border: 0;
+            border-radius: 8px;
+            background: var(--hc-blue);
+            color: #fff;
+            padding: 8px 14px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background .15s;
+        }
+        .hr-primary:hover {
+            background: #1d4ed8;
+        }
+        .hr-secondary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            border: 1px solid var(--hc-border);
+            border-radius: 8px;
+            background: var(--hc-surface);
+            color: var(--hc-text);
+            padding: 7px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .15s, border-color .15s;
+        }
+        .hr-secondary:hover {
+            background: var(--hc-hover);
+            border-color: var(--hc-blue);
+        }
+        .modal-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .metric-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border-radius: 999px;
+            padding: 3px 10px;
+            font-size: 10px;
+            font-weight: 700;
+            background: #f1f5f9;
+            color: #475569;
+        }
+        .dark .metric-pill {
+            background: #374151;
+            color: #d1d5db;
+        }
+
+        .member-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background .12s;
+        }
+        .member-dropdown-item:hover {
+            background: var(--hc-hover);
+        }
+
+        .legacy-data {
+            display: none !important;
+        }
+
+        .direct-view {
+            grid-column: 2 / 4;
+            display: grid;
+            grid-template-columns: minmax(280px, 360px) 1fr;
+            overflow: hidden;
+        }
+        .direct-view.hidden {
+            display: none;
+        }
+
+        .online-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--hc-border);
+            cursor: pointer;
+            transition: background .12s;
+        }
+        .online-row:hover {
+            background: var(--hc-hover);
+        }
+
+        .meeting-row {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px;
+            border-bottom: 1px solid var(--hc-border);
+            background: var(--hc-surface);
+            transition: background-color 0.2s;
+        }
+        .meeting-row:hover {
+            background: var(--hc-hover);
+        }
+        .meeting-row-main {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .meeting-title {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+            color: var(--hc-text);
+        }
+        .meeting-status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .meeting-status-badge.active {
+            background: rgba(34, 197, 94, 0.1);
+            color: #16a34a;
+        }
+        .meeting-meta {
+            margin-top: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--hc-muted);
+        }
+        .meeting-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .meeting-actions .hr-secondary,
+        .meeting-actions .hr-primary {
+            padding: 6px 12px;
+            font-size: 11px;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .meeting-participants {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .meeting-participant {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            max-width: 100%;
+            border: 1px solid var(--hc-border);
+            border-radius: 12px;
+            padding: 4px 10px;
+            font-size: 11px;
+            color: var(--hc-text);
+            background: var(--hc-soft);
+            transition: all 0.15s;
+        }
+        .meeting-participant:hover {
+            border-color: var(--hc-blue);
+            background: var(--hc-blue-soft);
+            color: var(--hc-blue);
+        }
+        .meeting-participant.failed {
+            border-color: #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+        .meeting-participant.sent {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+        }
+        .meeting-empty {
+            padding: 40px 20px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: var(--hc-muted);
+        }
+        .meeting-empty .material-icons-round {
+            font-size: 48px;
+            opacity: 0.3;
+        }
+        .meeting-empty p {
+            margin: 0;
+            font-size: 12px;
+        }
+        .meeting-empty p:first-of-type {
+            font-weight: 600;
+            color: var(--hc-text);
+            font-size: 14px;
+        }
+
+        /* ===== MEETING PARTICIPANTS DROPDOWN ===== */
+        .meeting-participants-dropdown {
+            position: relative;
+        }
+        .meeting-participants-field {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            min-height: 40px;
+            padding: 8px 12px;
+            border: 1px solid var(--hc-border);
+            border-radius: 8px;
+            background: var(--hc-surface);
+            cursor: text;
+        }
+        .meeting-participants-field:focus-within {
+            border-color: var(--hc-blue);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+        .meeting-participants-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .meeting-participants-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: var(--hc-blue-soft);
+            color: var(--hc-blue);
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .meeting-participants-tag .tag-remove {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            margin-left: 4px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            padding: 0;
+            color: inherit;
+            font-size: 14px;
+            line-height: 1;
+        }
+        .meeting-participants-tag .tag-remove:hover {
+            opacity: 0.7;
+        }
+        .meeting-participants-search {
+            flex: 1;
+            min-width: 120px;
+            border: none;
+            background: transparent;
+            font-size: 13px;
+            outline: none;
+            color: var(--hc-text);
+        }
+        .meeting-participants-search::placeholder {
+            color: var(--hc-muted);
+        }
+        .meeting-participants-panel {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 6px;
+            background: var(--hc-surface);
+            border: 1px solid var(--hc-border);
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+        .meeting-participants-panel.hidden {
+            display: none;
+        }
+        .meeting-participants-list {
+            display: flex;
+            flex-direction: column;
+        }
+        .meeting-participants-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--hc-border);
+            transition: background-color 0.15s;
+        }
+        .meeting-participants-item:last-child {
+            border-bottom: none;
+        }
+        .meeting-participants-item:hover {
+            background: var(--hc-hover);
+        }
+        .meeting-participants-item.hidden {
+            display: none;
+        }
+        .meeting-participants-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            margin: 0;
+        }
+        .meeting-participants-item-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--hc-blue-soft);
+            color: var(--hc-blue);
+            font-size: 10px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .meeting-participants-item-content {
+            min-width: 0;
+            flex: 1;
+        }
+        .meeting-participants-item-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--hc-text);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin: 0;
+        }
+        .meeting-participants-item-dept {
+            font-size: 10px;
+            color: var(--hc-muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin: 2px 0 0 0;
+        }
+        .meeting-participants-empty {
+            padding: 20px 12px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--hc-muted);
+        }
+
+        @media (max-width: 960px) {
+            .comm-shell {
+                grid-template-columns: 232px minmax(0, 1fr);
+            }
+            .direct-view {
+                grid-column: 2 / 3;
+                grid-template-columns: 1fr;
+            }
+            .groups-view {
+                grid-column: 2 / 3;
+                grid-template-columns: 1fr;
+            }
+            .meetings-view {
+                grid-column: 2 / 3;
+            }
+            .comm-list {
+                display: none;
+            }
+            .broadcast-view {
+                grid-column: 2 / 3;
+                grid-template-columns: 1fr;
+            }
+            .broadcast-list {
+                display: none;
+            }
+            .groups-list {
+                display: none;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .comm-shell {
+                grid-template-columns: minmax(0, 1fr);
+                border-radius: 0;
+                border-left: 0;
+                border-right: 0;
+            }
+            .comm-nav {
+                display: none;
+            }
+            .direct-messages {
+                padding: 14px 12px;
+            }
+            .message-stack {
+                max-width: 84%;
+            }
+            .chat-topbar {
+                padding: 6px 12px;
+                height: 54px;
+            }
+            .broadcast-view {
+                grid-column: 1 / 2;
+                grid-template-columns: 1fr;
+            }
+            .groups-view {
+                grid-column: 1 / 2;
+                grid-template-columns: 1fr;
+            }
+            .meetings-view {
+                grid-column: 1 / 2;
+            }
+            .broadcast-list {
+                display: none;
+            }
+            .groups-list {
+                display: none;
+            }
+            .broadcast-create .form-row {
+                flex-wrap: wrap;
+            }
+            .broadcast-create .form-row .hr-primary {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .hr-comm main {
+            padding: 0 !important;
+        }
+        .hr-comm .main-content {
+            padding: 0 !important;
+        }
+
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-1 { gap: 4px; }
+        .gap-2 { gap: 8px; }
+        .gap-3 { gap: 12px; }
+        .mt-2 { margin-top: 8px; }
+        .mt-3 { margin-top: 12px; }
+        .mb-2 { margin-bottom: 8px; }
+        .hidden { display: none !important; }
+        .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .min-w-0 { min-width: 0; }
+        .flex-1 { flex: 1; }
+        .flex-wrap { flex-wrap: wrap; }
+        .w-full { width: 100%; }
+        .text-left { text-align: left; }
+        .relative { position: relative; }
+        .absolute { position: absolute; }
+        .z-50 { z-index: 50; }
+        .text-base { font-size: 16px; }
+        .text-sm { font-size: 13px; }
+        .text-xs { font-size: 11px; }
+        .font-bold { font-weight: 700; }
+        .font-medium { font-weight: 500; }
+        .font-semibold { font-weight: 600; }
+        .capitalize { text-transform: capitalize; }
+        .overflow-y-auto { overflow-y: auto; }
+        .space-y-2>*+* { margin-top: 8px; }
+    </style>
+</head>
+
+<body>
+
+<main layout:fragment="content" class="hr-comm">
+
+    <div class="comm-shell">
+
+        <!-- ===== NAVIGATION ===== -->
+        <aside class="comm-nav">
+            <div class="nav-heading">
+                <h1>Communication</h1>
+                <p>Connect with your employees</p>
+            </div>
+
+            <button class="nav-link active" type="button" data-view="inbox" id="navInbox">
+                <span class="material-icons-round">inbox</span>
+                Inbox
+                <span class="nav-count" id="inboxCount">0</span>
+            </button>
+            <button class="nav-link" type="button" data-view="mentions" id="navMentions">
+                <span class="material-icons-round">alternate_email</span>
+                Mentions
+            </button>
+            <button class="nav-link" type="button" data-view="sent" id="navSent">
+                <span class="material-icons-round">send</span>
+                Sent
+            </button>
+
+            <div class="nav-section-title">Communication</div>
+
+            <button class="nav-link" type="button" id="navBroadcastsSwitch">
+                <span class="material-icons-round">campaign</span>
+                Broadcasts
+                <span class="nav-count" id="broadcastCount">0</span>
+            </button>
+
+            <button class="nav-link" type="button" id="navGroups">
+                <span class="material-icons-round">groups</span>
+                Groups
+                <span class="nav-count" id="groupCount">0</span>
+            </button>
+            <button class="nav-link" type="button" id="navMeetings">
+                <span class="material-icons-round">videocam</span>
+                Meetings
+                <span class="nav-count" id="meetingCount">0</span>
+            </button>
+
+            <div class="nav-section-title">Online now</div>
+            <div id="navOnlineRows"></div>
+        </aside>
+
+        <!-- ===== DIRECT MESSAGING VIEW ===== -->
+        <div class="direct-view" id="directView">
+            <section class="comm-list">
+                <div class="list-header">
+                    <div class="list-title-row">
+                        <h2 id="listTitle">Inbox</h2>
+                        <div class="flex items-center gap-1">
+                            <button id="refreshDirectBtn" class="icon-btn" type="button" title="Refresh">
+                                <span class="material-icons-round text-base">refresh</span>
+                            </button>
+                            <button id="newMessageBtn" class="icon-btn" type="button" title="New message">
+                                <span class="material-icons-round text-base">add</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="search-box">
+                        <span class="material-icons-round">search</span>
+                        <input id="directSearch" class="comm-search" placeholder="Search employees">
+                    </div>
+                    <div class="list-tabs">
+                        <button class="list-tab active" type="button" data-filter="all">All</button>
+                        <button class="list-tab" type="button" data-filter="unread">Unread</button>
+                        <button class="list-tab" type="button" data-filter="online">Online</button>
+                    </div>
+                </div>
+                <div id="directPeopleRows"></div>
+            </section>
+
+            <section class="comm-chat">
+                <header class="chat-topbar">
+                    <div class="chat-person">
+                        <div id="directChatAvatar" class="chat-avatar">--</div>
+                        <div class="min-w-0">
+                            <h3 id="directChatName">Select an employee</h3>
+                            <p id="directChatMeta">Choose a conversation from your inbox.</p>
+                        </div>
+                    </div>
+                    <div class="chat-actions">
+                        <button class="icon-btn" type="button" id="chatMeetingBtn" title="Schedule meeting">
+                            <span class="material-icons-round text-base">videocam</span>
+                        </button>
+                        <button class="icon-btn" type="button" id="chatProfileBtn" title="View employee">
+                            <span class="material-icons-round text-base">person</span>
+                        </button>
+                        <button class="icon-btn" type="button" id="chatBroadcastBtn" title="Send broadcast">
+                            <span class="material-icons-round text-base">campaign</span>
+                        </button>
+                    </div>
+                </header>
+                <div id="directMessages" class="direct-messages">
+                    <div class="empty-state">
+                        <div>
+                            <span class="material-icons-round">forum</span>
+                            <p>Your conversations</p>
+                            <p>Select an employee to start messaging.</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="directAttachmentTray" class="attachment-tray" style="display:none;"></div>
+                <div class="message-composer">
+                    <form id="directMessageForm">
+                        <input id="directMessageFiles" type="file" multiple class="hidden"
+                               accept=".pdf,.png,.jpg,.jpeg,.txt,.doc,.docx,.xls,.xlsx">
+                        <div class="composer-shell">
+                            <button id="attachDirectFileBtn" class="composer-button" type="button" title="Attach files">
+                                <span class="material-icons-round" style="font-size:17px;">attach_file</span>
+                            </button>
+                            <textarea id="directMessageInput" class="composer-input" rows="1" maxlength="2000"
+                                      placeholder="Type your message..."></textarea>
+                            <button id="sendDirectMessageBtn" class="composer-button composer-send" type="submit" title="Send message">
+                                <span class="material-icons-round" style="font-size:17px;">send</span>
+                            </button>
+                        </div>
+                        <p id="directChatStatus" class="text-xs text-muted mt-1 px-1"
+                           th:text="'Private employee messaging'">
+                            Private employee messaging
+                        </p>
+                    </form>
+                </div>
+            </section>
+        </div>
+
+        <!-- ===== BROADCAST VIEW — improved ===== -->
+        <div class="broadcast-view" id="broadcastView">
+            <!-- Broadcast List -->
+            <div class="broadcast-list">
+                <div class="broadcast-list-header">
+                    <h2>Broadcasts</h2>
+                    <button class="icon-btn" id="refreshBroadcastBtn" title="Refresh">
+                        <span class="material-icons-round text-base">refresh</span>
+                    </button>
+                </div>
+                <div id="broadcastListRows" class="overflow-y-auto flex-1"></div>
+            </div>
+
+            <!-- Broadcast Detail / Create -->
+            <div class="broadcast-detail" id="broadcastDetail">
+                <div class="broadcast-detail-header">
+                    <h3 id="broadcastDetailTitle">Select a broadcast</h3>
+                    <p id="broadcastDetailMeta">View its content and comments, or create a new one below.</p>
+                </div>
+                <div class="broadcast-detail-body" id="broadcastDetailBody">
+                    <!-- Empty state - now centralised -->
+                    <div id="broadcastEmptyState">
+                        <div>
+                            <span class="material-icons-round">campaign</span>
+                            <p>No broadcast selected</p>
+                            <p>Click a broadcast from the list or create a new one.</p>
+                        </div>
+                    </div>
+                    <div id="broadcastContentContainer">
+                        <div class="content" id="broadcastContentText"></div>
+                        <div class="detail-attachments" id="broadcastAttachments"></div>
+                        <div class="comments-section" id="broadcastCommentsSection">
+                            <div class="section-label">
+                                <span class="material-icons-round">chat</span>
+                                Comments
+                                <span class="count-badge" id="commentCountBadge">0</span>
+                            </div>
+                            <div id="broadcastComments"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Broadcast Create Form — improved -->
+                <div class="broadcast-create">
+                    <form id="broadcastCreateForm" class="form-grid">
+                        <div class="form-row">
+                            <input id="broadcastCreateTitle" class="hr-input" maxlength="160"
+                                   placeholder="Broadcast title…" required>
+                            <button class="hr-primary" type="submit" id="broadcastSendBtn">
+                                <span class="material-icons-round" style="font-size:16px;">send</span>
+                                Send
+                            </button>
+                        </div>
+                        <div class="form-row">
+                            <textarea id="broadcastCreateContent" class="hr-input" maxlength="5000" rows="2"
+                                      placeholder="Write your announcement…" required></textarea>
+                        </div>
+                        <div class="toolbar">
+                            <input id="broadcastCreateFiles" type="file" multiple class="hidden"
+                                   accept=".pdf,.png,.jpg,.jpeg,.txt,.doc,.docx,.xls,.xlsx">
+                            <button id="attachBroadcastCreateBtn" class="hr-secondary" type="button">
+                                <span class="material-icons-round" style="font-size:15px;">attach_file</span>
+                                Attach
+                            </button>
+                            <div id="broadcastCreateAttachmentTray" class="attachment-tray"></div>
+                            <span id="broadcastCreateStatus" class="status-text">Ready</span>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== GROUPS VIEW ===== -->
+        <div class="groups-view" id="groupsView">
+            <!-- Groups List -->
+            <div class="groups-list">
+                <div class="groups-list-header">
+                    <h2>Groups</h2>
+                    <button class="icon-btn" id="createGroupBtn" title="Create group">
+                        <span class="material-icons-round text-base">add</span>
+                    </button>
+                </div>
+                <div id="groupListRows" class="overflow-y-auto flex-1"></div>
+            </div>
+
+            <!-- Group Detail with Chat -->
+            <div class="group-detail" id="groupDetail">
+                <div class="group-detail-header">
+                    <h3 id="groupDetailTitle">Select a group</h3>
+                    <p id="groupDetailMeta">View group details and members.</p>
+                </div>
+                <div class="group-detail-body" id="groupDetailBody">
+                    <!-- Empty state -->
+                    <div id="groupEmptyState">
+                        <div>
+                            <span class="material-icons-round">groups</span>
+                            <p>No group selected</p>
+                            <p>Click a group from the list or create a new one.</p>
+                        </div>
+                    </div>
+                    <div id="groupContentContainer">
+                        <div class="group-description" id="groupDescriptionText"></div>
+                        <div class="members-section" id="groupMembersSection">
+                            <div class="section-label">
+                                <span class="material-icons-round">person</span>
+                                Members
+                                <span class="count-badge" id="groupMemberCountBadge">0</span>
+                            </div>
+                            <div id="groupMembers"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group Chat Area -->
+                <div class="group-chat-area" id="groupChatArea" style="display: none; flex-direction: column; height: 100%;">
+                    <div id="groupMessages" class="group-messages" style="flex: 1; overflow-y: auto; padding: 20px 24px; background: radial-gradient(circle at 50% 0%, rgba(37,99,235,.035), transparent 45%), var(--hc-soft);">
+                        <div class="empty-state" style="min-height:auto;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                            <div style="text-align:center;">
+                                <span class="material-icons-round">chat_bubble</span>
+                                <p>No messages yet</p>
+                                <p>Send the first message to start the conversation.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="group-chat-composer" style="border-top: 1px solid var(--hc-border); background: var(--hc-surface); padding: 12px 16px; flex-shrink: 0;">
+                        <div id="groupAttachmentTray" class="attachment-tray" style="display:none;padding:0 0 8px 0;"></div>
+                        <form id="groupMessageForm">
+                            <input id="groupMessageFiles" type="file" multiple class="hidden" accept=".pdf,.png,.jpg,.jpeg,.txt,.doc,.docx,.xls,.xlsx">
+                            <div class="composer-shell">
+                                <button id="attachGroupFileBtn" class="composer-button" type="button" title="Attach files">
+                                    <span class="material-icons-round" style="font-size:17px;">attach_file</span>
+                                </button>
+                                <textarea id="groupMessageInput" class="composer-input" rows="1" maxlength="2000" placeholder="Type your message..."></textarea>
+                                <button id="sendGroupMessageBtn" class="composer-button composer-send" type="submit" title="Send message">
+                                    <span class="material-icons-round" style="font-size:17px;">send</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== MEETINGS VIEW — new ===== -->
+        <div class="meetings-view" id="meetingsView">
+            <div class="broadcast-list-header">
+                <h2>Meetings</h2>
+                <button class="icon-btn" id="newMeetingBtn" title="Schedule meeting">
+                    <span class="material-icons-round text-base">add</span>
+                </button>
+            </div>
+            <div id="meetingRows"></div>
+        </div>
+
+    </div> <!-- end comm-shell -->
+
+    <!-- ===== MODALS for Groups & Meetings ===== -->
+    <div id="groupModal" class="comm-modal">
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3>Create chat group</h3>
+                <button class="icon-btn modal-close" type="button">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <form id="hrGroupForm" class="modal-body">
+                <div class="form-field">
+                    <label class="form-label">Group name</label>
+                    <input id="hrGroupName" class="hr-input" maxlength="100" placeholder="e.g. HR &amp; Management" required>
+                </div>
+                <div class="form-field">
+                    <label class="form-label">Description</label>
+                    <textarea id="hrGroupDescription" class="hr-input" maxlength="500" rows="2" placeholder="What is this group for?"></textarea>
+                </div>
+                <div class="form-field">
+                    <label class="form-label">Members</label>
+                    <div class="relative" id="memberDropdown">
+                        <button type="button" id="memberDropdownToggle"
+                                class="hr-input w-full text-left flex items-center justify-between"
+                                aria-expanded="false">
+                            <span id="memberDropdownPlaceholder" class="text-muted">Select employees…</span>
+                            <span class="material-icons-round text-muted">expand_more</span>
+                        </button>
+                        <div id="memberDropdownPanel"
+                             class="absolute z-50 w-full max-h-80 overflow-hidden hidden mt-1"
+                             style="border:1px solid var(--hc-border);border-radius:10px;background:var(--hc-surface);box-shadow:0 12px 30px -10px rgba(0,0,0,.2);">
+                            <div class="p-2 border-b" style="border-color:var(--hc-border);padding:8px;">
+                                <input id="memberDropdownSearch" type="text" class="hr-input"
+                                       placeholder="Search employees…" autocomplete="off">
+                            </div>
+                            <div id="memberDropdownList" style="max-height:220px;overflow-y:auto;"></div>
+                            <div id="memberDropdownFooter" class="hidden p-2 border-t text-xs text-muted text-right"
+                                 style="border-color:var(--hc-border);padding:8px;">
+                                <span id="selectedCount">0</span> selected
+                            </div>
+                        </div>
+                    </div>
+                    <div id="selectedMembersTags" class="flex flex-wrap gap-1.5 mt-2" style="min-height:28px;"></div>
+                    <input type="hidden" id="hrMemberIds" name="memberEmployeeIds">
+                </div>
+                <div class="modal-actions">
+                    <span id="hrGroupStatus" class="text-xs text-muted mr-auto">Select members and create the group.</span>
+                    <button class="hr-secondary modal-close" type="button">Cancel</button>
+                    <button class="hr-primary" type="submit">
+                        <span class="material-icons-round" style="font-size:14px;">group_add</span>
+                        Create group
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="meetingModal" class="comm-modal">
+        <div class="modal-card">
+            <div class="modal-head">
+                <div>
+                    <h3 style="margin:0 0 4px 0;">Schedule a meeting</h3>
+                    <p style="margin:0;font-size:12px;color:var(--hc-muted);">Create a video meeting and invite participants</p>
+                </div>
+                <button class="icon-btn modal-close" type="button">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <form id="meetingForm" class="modal-body">
+                <div class="form-field">
+                    <label class="form-label">Meeting provider</label>
+                    <select id="meetingProvider" class="hr-input">
+                        <option value="MICROSOFT_TEAMS">Microsoft Teams</option>
+                        <option value="ZOOM">Zoom</option>
+                        <option value="GOOGLE_MEET">Google Meet</option>
+                    </select>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label">Meeting subject *</label>
+                    <input id="meetingSubject" class="hr-input" maxlength="200" placeholder="e.g., Team Standup, Client Review" required>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label">Agenda</label>
+                    <textarea id="meetingAgenda" class="hr-input" maxlength="2000" rows="3" placeholder="Describe the meeting agenda..."></textarea>
+                </div>
+
+                <div class="form-field">
+                    <label class="flex items-center gap-2 text-sm font-semibold mb-3">
+                        <input id="meetingInstant" type="checkbox" checked style="width:16px;height:16px;cursor:pointer;">
+                        <span>Start meeting immediately</span>
+                    </label>
+                    <p style="margin:0;font-size:11px;color:var(--hc-muted);">Uncheck to schedule for a specific date and time</p>
+                </div>
+
+                <div id="meetingTimeFields" class="flex gap-3 flex-wrap" style="display:none;">
+                    <div class="form-field" style="flex:1;min-width:160px;">
+                        <label class="form-label">Start date and time</label>
+                        <input id="meetingStart" type="datetime-local" class="hr-input" disabled>
+                    </div>
+                    <div class="form-field" style="flex:1;min-width:160px;">
+                        <label class="form-label">End date and time</label>
+                        <input id="meetingEnd" type="datetime-local" class="hr-input" disabled>
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label">Invite participants</label>
+                    <div id="meetingParticipantsDropdown" class="meeting-participants-dropdown">
+                        <div id="meetingParticipantsField" class="meeting-participants-field">
+                            <div id="meetingParticipantsTags" class="meeting-participants-tags"></div>
+                            <input type="hidden" id="meetingParticipantIds" value="">
+                            <input id="meetingParticipantsSearch" type="text" class="meeting-participants-search" placeholder="Search employees..." autocomplete="off">
+                        </div>
+                        <div id="meetingParticipantsPanel" class="meeting-participants-panel hidden">
+                            <div id="meetingParticipantsList" class="meeting-participants-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label class="flex items-center gap-2 text-sm font-semibold">
+                        <input id="meetingNotify" type="checkbox" checked style="width:16px;height:16px;cursor:pointer;">
+                        <span>Send invitations to participants</span>
+                    </label>
+                    <p style="margin:4px 0 0 0;font-size:11px;color:var(--hc-muted);">Participants will be notified via email and chat</p>
+                </div>
+
+                <div class="modal-actions">
+                    <span id="meetingStatus" class="text-xs text-muted mr-auto">Ready to create</span>
+                    <button class="hr-secondary modal-close" type="button">Cancel</button>
+                    <button class="hr-primary" type="submit">
+                        <span class="material-icons-round" style="font-size:14px;">video_call</span>
+                        Create meeting
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== LEGACY DATA ===== -->
+    <div class="legacy-data">
+        <div id="onlineRows"></div>
+        <div id="hrGroupRows"></div>
+        <div id="broadcastRows"></div>
+    </div>
+
+    <!-- ===== SCRIPTS ===== -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js">
+    </script>
+    <script th:inline="javascript">
+        /* ===========================================================
+           Full communication logic — direct messages + broadcast view + groups view
+           with refined styling.
+           =========================================================== */
+
+        // ── server-side injected variables ──
+        const currentEmployeeId = /*[[${currentEmployeeId}]]*/ null;
+        const directChatAvailable = true;
+        const canCreateGroups = /*[[${canCreateGroups}]]*/ true;
+
+        // ── state ──
+        let stompClient;
+        let broadcasts = [];
+        let onlineEmployees = [];
+        let groups = [];
+        let meetings = [];
+        let directContacts = [];
+        let directConversations = [];
+        let availableMembers = [];
+        let selectedBroadcastFiles = [];
+        let selectedDirectFiles = [];
+        let selectedGroupFiles = [];
+        let selectedDirectContact = null;
+        let selectedBroadcast = null;
+        let selectedGroup = null;
+        let activeCommentSubscription = null;
+        let activeReceiptSubscription = null;
+        let activeGroupSubscription = null;
+        let currentFilter = 'all';
+        let activeMainView = 'direct';       // 'direct' | 'broadcasts' | 'groups' | 'meetings'
+        let currentView = 'inbox';           // 'inbox' | 'mentions' | 'sent'
+        let memberDropdownOpen = false;
+        let meetingParticipantsDropdownOpen = false;
+
+        // de-dupe echoed direct messages (subscribed to two destinations)
+        const renderedMessageIds = new Set();
+        function rememberMessageId(id) {
+            if (id == null) return false;
+            if (renderedMessageIds.has(id)) return true;
+            renderedMessageIds.add(id);
+            if (renderedMessageIds.size > 500) {
+                // trim oldest
+                const first = renderedMessageIds.values().next().value;
+                renderedMessageIds.delete(first);
+            }
+            return false;
+        }
+
+        // server-side injected identifiers
+        const currentEmployeeNumber = /*[[${currentEmployeeNumber}]]*/ '';
+
+        // ── helpers ──
+        function initials(name) {
+            return (name || '').split(' ').filter(Boolean).slice(0, 2).map(part => part[0].toUpperCase()).join('') || '--';
+        }
+
+        function formatTime(value) {
+            if (!value) return '';
+            return new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatMeetingTime(meeting) {
+            if (!meeting) return '';
+            if (meeting.instantMeeting) return 'Now';
+            const start = meeting.startTime ? new Date(meeting.startTime) : null;
+            const end = meeting.endTime ? new Date(meeting.endTime) : null;
+            if (!start || isNaN(start.getTime())) return '';
+            const startText = start.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            if (!end || isNaN(end.getTime())) return startText;
+            const sameDay = start.toDateString() === end.toDateString();
+            const endText = sameDay
+                ? end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : end.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            return `${startText} - ${endText}`;
+        }
+
+        function formatShortTime(value) {
+            if (!value) return '';
+            const date = new Date(value);
+            const today = new Date();
+            if (date.toDateString() === today.toDateString()) {
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+            return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        }
+
+        function summary(value) {
+            const text = value || '';
+            return text.length > 160 ? text.substring(0, 157) + '...' : text;
+        }
+
+        /* ← FIX: normalise CRLF/CR to LF so pre-wrap renders consistently
+                  and browsers don't show a stray \r as an extra line. */
+        function escapeHtml(value) {
+            const div = document.createElement('div');
+            const text = value == null ? '' : String(value).replace(/\r\n?/g, '\n');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function providerLabel(provider) {
+            const labels = { MICROSOFT_TEAMS: 'Microsoft Teams', GOOGLE_MEET: 'Google Meet', ZOOM: 'Zoom' };
+            return labels[provider] || provider || '';
+        }
+
+        function attachmentIcon(contentType) {
+            const type = (contentType || '').toLowerCase();
+            if (type.includes('image')) return 'image';
+            if (type.includes('pdf')) return 'picture_as_pdf';
+            return 'description';
+        }
+
+        function formatFileSize(size) {
+            if (!size) return '';
+            if (size < 1024 * 1024) return Math.round(size / 1024) + ' KB';
+            return (size / 1024 / 1024).toFixed(1) + ' MB';
+        }
+
+        function attachmentList(attachments) {
+            if (!attachments || !attachments.length) return '';
+            return '<div class="attachment-list">' + attachments.map(a => `
+                <a class="attachment-link" href="${a.downloadUrl}" target="_blank">
+                    <span class="material-icons-round" style="font-size:14px;">${attachmentIcon(a.contentType)}</span>
+                    <span class="truncate">${escapeHtml(a.originalFilename)}</span>
+                    <span style="margin-left:auto;font-size:9px;">${formatFileSize(a.fileSize)}</span>
+                </a>`).join('') + '</div>';
+        }
+
+        async function json(url, options) {
+            const response = await fetch(url, options);
+            if (!response.ok) throw new Error(await response.text());
+            return response.json();
+        }
+
+        // ── load data ──
+        async function loadData() {
+            try {
+                [broadcasts, onlineEmployees, groups, meetings] = await Promise.all([
+                    json('/communication/broadcasts'),
+                    json('/communication/presence'),
+                    json('/communication/groups'),
+                    json('/communication/meetings')
+                ]);
+            } catch (e) {
+                console.warn('Could not load data:', e);
+            }
+            renderBroadcasts();
+            renderBroadcastList();
+            renderOnline();
+            renderGroups();
+            renderGroupList();
+            renderMeetings();
+            renderMetrics();
+            await loadDirectData();
+        }
+
+        async function loadDirectData() {
+            try {
+                [directContacts, directConversations] = await Promise.all([
+                    json('/communication/employees'),
+                    json('/communication/conversations')
+                ]);
+            } catch (e) {
+                console.warn('Could not load direct data:', e);
+                directContacts = [];
+                directConversations = [];
+            }
+            mergeDirectConversations();
+            renderDirectContacts();
+        }
+
+        function mergeDirectConversations() {
+            const byId = new Map(directContacts.map(c => [c.id, c]));
+            directConversations.forEach(conv => {
+                if (conv.otherParticipant && byId.has(conv.otherParticipant.id)) {
+                    byId.set(conv.otherParticipant.id, {
+                        ...byId.get(conv.otherParticipant.id),
+                        unreadCount: conv.otherParticipant.unreadCount || 0,
+                        conversationId: conv.id,
+                        lastMessage: conv.lastMessage ? conv.lastMessage.content : null,
+                        lastMessageAt: conv.lastMessage ? conv.lastMessage.createdAt : conv.updatedAt,
+                        hasConversation: true
+                    });
+                }
+            });
+            directContacts = [...byId.values()];
+        }
+
+        function renderMetrics() {
+            document.getElementById('broadcastCount').textContent = broadcasts.length;
+            document.getElementById('groupCount').textContent = groups.length;
+            document.getElementById('meetingCount').textContent = meetings.length;
+            const unread = directContacts.reduce((s, c) => s + (c.unreadCount || 0), 0);
+            document.getElementById('inboxCount').textContent = unread;
+        }
+
+        // ── Online rendering ──
+        function renderOnline() {
+            const onlineContainer = document.getElementById('onlineRows');
+            if (onlineContainer) {
+                onlineContainer.innerHTML = onlineEmployees.length ? onlineEmployees.map(e => `
+                    <div class="online-row" data-employee-id="${e.employeeId}">
+                        <div class="person-avatar">${initials(e.fullName)}</div>
+                        <div class="min-w-0 flex-1">
+                            <p style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(e.fullName)}</p>
+                            <p style="font-size:10px;color:var(--hc-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(e.department || 'Unassigned')}</p>
+                        </div>
+                        <span style="width:9px;height:9px;border-radius:50%;background:var(--hc-green);flex:none;"></span>
+                    </div>`).join('') : '<div style="padding:30px;text-align:center;font-size:12px;color:var(--hc-muted);">No employees online right now.</div>';
+                onlineContainer.querySelectorAll('.online-row').forEach(row => {
+                    row.addEventListener('click', function(e) {
+                        const empId = Number(this.dataset.employeeId);
+                        if (empId) selectOnlineEmployee(empId);
+                    });
+                });
+            }
+
+            const navContainer = document.getElementById('navOnlineRows');
+            if (navContainer) {
+                navContainer.innerHTML = onlineEmployees.length ? onlineEmployees.slice(0, 8).map(e => `
+                    <div class="nav-online-row" data-employee-id="${e.employeeId}">
+                        <div class="mini-avatar">${initials(e.fullName)}</div>
+                        <span style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(e.fullName)}</span>
+                        <div class="mini-dot"></div>
+                    </div>`).join('') : '<div style="padding:8px 9px;font-size:11px;color:var(--hc-muted);">Nobody online.</div>';
+                navContainer.querySelectorAll('.nav-online-row').forEach(row => {
+                    row.addEventListener('click', function(e) {
+                        const empId = Number(this.dataset.employeeId);
+                        if (empId) selectOnlineEmployee(empId);
+                    });
+                });
+            }
+        }
+
+        function selectOnlineEmployee(employeeId) {
+            showMainView('direct');
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            document.getElementById('navInbox')?.classList.add('active');
+            currentView = 'inbox';
+            document.getElementById('listTitle').textContent = 'Inbox';
+
+            const contact = directContacts.find(c => c.id === employeeId);
+            if (contact) {
+                selectDirectContact(contact.id);
+                return;
+            }
+            const onlineEmp = onlineEmployees.find(e => e.employeeId === employeeId);
+            if (onlineEmp) {
+                const minimalContact = {
+                    id: onlineEmp.employeeId,
+                    employeeNumber: null,
+                    fullName: onlineEmp.fullName,
+                    email: null,
+                    department: onlineEmp.department || 'Unassigned',
+                    online: true,
+                    unreadCount: 0,
+                    conversationId: null,
+                    lastMessage: null,
+                    lastMessageAt: null,
+                    isGroup: false
+                };
+                directContacts.push(minimalContact);
+                selectDirectContact(minimalContact.id);
+                return;
+            }
+            document.getElementById('directChatName').textContent = 'Employee not found';
+            document.getElementById('directChatMeta').textContent = 'Please refresh the employee list.';
+        }
+        window.selectOnlineEmployee = selectOnlineEmployee;
+
+        // ── Groups ──
+        function renderGroups() {
+            document.getElementById('groupCount').textContent = groups.length;
+            if (selectedGroup) {
+                const updated = groups.find(g => g.id === selectedGroup.id);
+                if (updated) {
+                    selectedGroup = updated;
+                    renderGroupDetail(updated);
+                } else {
+                    selectedGroup = null;
+                    clearGroupDetail();
+                }
+            }
+        }
+
+        function renderGroupList() {
+            const rows = document.getElementById('groupListRows');
+            if (!rows) return;
+            rows.innerHTML = groups.length ? groups.map(item => `
+                <div class="group-item ${selectedGroup && selectedGroup.id === item.id ? 'active' : ''}" data-group-id="${item.id}">
+                    <div class="group-item-title">${escapeHtml(item.name)}</div>
+                    <div class="group-item-meta">
+                        <span>${formatTime(item.createdAt)}</span>
+                        <span>·</span>
+                        <span class="member-count">${item.memberCount || 0} members</span>
+                    </div>
+                </div>
+            `).join('') : '<div style="padding:40px;text-align:center;font-size:12px;color:var(--hc-muted);">No groups created yet.</div>';
+
+            document.querySelectorAll('.group-item[data-group-id]').forEach(el => {
+                el.addEventListener('click', () => selectGroup(Number(el.dataset.groupId)));
+            });
+        }
+
+        function renderGroupDetail(group) {
+            const emptyState = document.getElementById('groupEmptyState');
+            const container = document.getElementById('groupContentContainer');
+            if (emptyState) emptyState.style.display = 'none';
+            container.style.display = 'block';
+
+            document.getElementById('groupDetailTitle').textContent = group.name;
+            document.getElementById('groupDetailMeta').textContent =
+                `${formatTime(group.createdAt)} · ${group.memberCount || 0} members`;
+
+            document.getElementById('groupDescriptionText').textContent = group.description || '(No description)';
+
+            // Members
+            const membersDiv = document.getElementById('groupMembers');
+            const countBadge = document.getElementById('groupMemberCountBadge');
+            const members = group.members || [];
+            countBadge.textContent = members.length;
+            membersDiv.innerHTML = members && members.length ?
+                members.map(m => `
+                    <div class="group-member">
+                        <div class="member-avatar">${initials(m.fullName)}</div>
+                        <div class="member-info">
+                            <div class="member-name">${escapeHtml(m.fullName)}</div>
+                            <div class="member-department">${escapeHtml(m.department || 'Unassigned')}</div>
+                        </div>
+                    </div>
+                `).join('') :
+                `<p style="color:var(--hc-muted);font-size:12px;padding:8px 0;">No members yet.</p>`;
+        }
+
+        function clearGroupDetail() {
+            const emptyState = document.getElementById('groupEmptyState');
+            const container = document.getElementById('groupContentContainer');
+            if (emptyState) emptyState.style.display = 'grid';
+            container.style.display = 'none';
+            document.getElementById('groupDetailTitle').textContent = 'Select a group';
+            document.getElementById('groupDetailMeta').textContent = 'View group details and members.';
+            const chatArea = document.getElementById('groupChatArea');
+            if (chatArea) chatArea.style.display = 'none';
+        }
+
+        async function selectGroup(id) {
+            const group = groups.find(g => g.id === id);
+            if (!group) return;
+            selectedGroup = group;
+            renderGroupList();
+            renderGroupDetail(group);
+            await loadGroupMessages(group.id);
+            setupGroupChat(group.id);
+        }
+
+        async function loadGroupMessages(groupId) {
+            try {
+                const messages = await json('/communication/groups/' + groupId + '/messages');
+                renderGroupMessages(messages);
+            } catch (e) {
+                console.error('Failed to load group messages:', e);
+                const rows = document.getElementById('groupMessages');
+                rows.innerHTML = `
+                    <div class="empty-state" style="min-height:auto;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                        <div style="text-align:center;">
+                            <span class="material-icons-round">error</span>
+                            <p>Could not load messages</p>
+                            <p>Please try again later.</p>
+                        </div>
+                    </div>`;
+            }
+        }
+
+        function renderGroupMessages(history) {
+            const rows = document.getElementById('groupMessages');
+            if (!history || !history.length) {
+                rows.innerHTML = `
+                    <div class="empty-state" style="min-height:auto;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                        <div style="text-align:center;">
+                            <span class="material-icons-round">chat_bubble</span>
+                            <p>No messages yet</p>
+                            <p>Send the first message to start the conversation.</p>
+                        </div>
+                    </div>`;
+                return;
+            }
+            rows.innerHTML = history.map(msg => {
+                const mine = msg.senderId === currentEmployeeId;
+                return `
+                    <div class="message-row ${mine ? 'mine' : ''}">
+                        <div class="message-mini-avatar" style="background:${mine ? 'var(--hc-emerald)' : 'var(--hc-blue-soft)'};color:${mine ? '#fff' : 'var(--hc-blue)'};">${initials(msg.senderName)}</div>
+                        <div class="message-stack">
+                            ${!mine ? `<div class="message-author">${escapeHtml(msg.senderName)}</div>` : ''}
+                            <div class="message-bubble">${msg.content ? escapeHtml(msg.content) : ''}${attachmentList(msg.attachments || [])}
+                                <div class="message-meta">${formatTime(msg.createdAt)}${mine && msg.deliveredAt ? ' · Delivered' : ''}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            rows.scrollTop = rows.scrollHeight;
+        }
+
+        function appendGroupMessage(msg) {
+            const rows = document.getElementById('groupMessages');
+            if (!rows) return;
+            if (rows.querySelector('.empty-state')) rows.innerHTML = '';
+            const mine = msg.senderId === currentEmployeeId;
+            rows.insertAdjacentHTML('beforeend', `
+                <div class="message-row ${mine ? 'mine' : ''}">
+                    <div class="message-mini-avatar" style="background:${mine ? 'var(--hc-emerald)' : 'var(--hc-blue-soft)'};color:${mine ? '#fff' : 'var(--hc-blue)'};">${initials(msg.senderName)}</div>
+                    <div class="message-stack">
+                        ${!mine ? `<div class="message-author">${escapeHtml(msg.senderName)}</div>` : ''}
+                        <div class="message-bubble">${msg.content ? escapeHtml(msg.content) : ''}${attachmentList(msg.attachments || [])}
+                            <div class="message-meta">${formatTime(msg.createdAt)}</div>
+                        </div>
+                    </div>
+                </div>
+            `);
+            rows.scrollTop = rows.scrollHeight;
+        }
+
+        function setupGroupChat(groupId) {
+            // Show chat area
+            const chatArea = document.getElementById('groupChatArea');
+            if (chatArea) chatArea.style.display = 'flex';
+
+            // Reset any pending attachments when switching groups
+            selectedGroupFiles = [];
+            const fileInput = document.getElementById('groupMessageFiles');
+            if (fileInput) fileInput.value = '';
+            renderGroupAttachments();
+
+            // Subscribe to WebSocket for real-time messages
+            if (stompClient && stompClient.connected) {
+                if (activeGroupSubscription) activeGroupSubscription.unsubscribe();
+                activeGroupSubscription = stompClient.subscribe('/topic/chat-groups/' + groupId + '/messages', handleGroupMessage);
+            }
+
+            // Set up send message form
+            const form = document.getElementById('groupMessageForm');
+            if (form) {
+                form.onsubmit = async (e) => {
+                    e.preventDefault();
+                    const input = document.getElementById('groupMessageInput');
+                    const content = input.value.trim();
+                    if (!content && selectedGroupFiles.length === 0) return;
+
+                    const filesToSend = selectedGroupFiles.slice();
+                    input.value = '';
+                    selectedGroupFiles = [];
+                    if (fileInput) fileInput.value = '';
+                    renderGroupAttachments();
+
+                    try {
+                        let response;
+                        if (filesToSend.length > 0) {
+                            const fd = new FormData();
+                            fd.append('content', content);
+                            filesToSend.forEach(f => fd.append('files', f));
+                            response = await fetch('/communication/groups/' + groupId + '/messages', {
+                                method: 'POST',
+                                body: fd
+                            });
+                        } else {
+                            response = await fetch('/communication/groups/' + groupId + '/messages', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ content })
+                            });
+                        }
+                        if (!response.ok) throw new Error(await response.text());
+
+                        // If the WS echo is not going to arrive, append manually.
+                        if (!stompClient || !stompClient.connected) {
+                            const msg = await response.json();
+                            appendGroupMessage(msg);
+                        }
+                    } catch (err) {
+                        console.error('Failed to send group message:', err);
+                        input.value = content;
+                        selectedGroupFiles = filesToSend;
+                        renderGroupAttachments();
+                    }
+                };
+            }
+        }
+
+        function handleGroupMessage(message) {
+            const payload = JSON.parse(message.body);
+            if (selectedGroup && selectedGroup.id === payload.groupId) {
+                appendGroupMessage(payload);
+            }
+            // Update group list with last message preview
+            renderGroups();
+        }
+
+        function updateGroupFromMessage(message) {
+            const group = groups.find(g => g.id === message.groupId);
+            if (!group) return;
+            group.lastMessage = message.content;
+            group.lastMessageAt = message.createdAt;
+        }
+
+        function renderGroupAttachments() {
+            const tray = document.getElementById('groupAttachmentTray');
+            if (!tray) return;
+            tray.style.display = selectedGroupFiles.length ? 'flex' : 'none';
+            tray.innerHTML = selectedGroupFiles.map((f, i) =>
+                '<span class="attachment-pill"><span class="material-icons-round" style="font-size:13px;">attach_file</span><span class="truncate">' + escapeHtml(f.name) + '</span><button type="button" onclick="removeGroupFile(' + i + ')" title="Remove" style="background:none;border:0;cursor:pointer;color:var(--hc-muted);"><span class="material-icons-round" style="font-size:13px;">close</span></button></span>'
+            ).join('');
+        }
+
+        function removeGroupFile(index) {
+            selectedGroupFiles = selectedGroupFiles.filter((_, i) => i !== index);
+            renderGroupAttachments();
+        }
+        window.removeGroupFile = removeGroupFile;
+
+        // ── Broadcasts ──
+        function renderBroadcasts() {
+            document.getElementById('broadcastCount').textContent = broadcasts.length;
+            if (selectedBroadcast) {
+                const updated = broadcasts.find(b => b.id === selectedBroadcast.id);
+                if (updated) {
+                    selectedBroadcast = updated;
+                    renderBroadcastDetail(updated);
+                } else {
+                    selectedBroadcast = null;
+                    clearBroadcastDetail();
+                }
+            }
+            renderBroadcastList();
+        }
+
+        function renderBroadcastList() {
+            const rows = document.getElementById('broadcastListRows');
+            if (!rows) return;
+            rows.innerHTML = broadcasts.length ? broadcasts.map(item => `
+                <div class="broadcast-item ${selectedBroadcast && selectedBroadcast.id === item.id ? 'active' : ''}" data-broadcast-id="${item.id}">
+                    <div class="broadcast-item-title">${escapeHtml(item.title)}</div>
+                    <div class="broadcast-item-meta">
+                        <span>${formatTime(item.createdAt)}</span>
+                        <span>·</span>
+                        <span class="author-name">${escapeHtml(item.createdByName || 'HR')}</span>
+                    </div>
+                    <div class="broadcast-item-stats">
+                        <span class="metric-pill"><span class="material-icons-round" style="font-size:11px;">done</span>${item.deliveredCount || 0}</span>
+                        <span class="metric-pill"><span class="material-icons-round" style="font-size:11px;">visibility</span>${item.readCount || 0}</span>
+                        <span class="metric-pill highlight"><span class="material-icons-round" style="font-size:11px;">forum</span>${item.commentCount || 0}</span>
+                    </div>
+                </div>
+            `).join('') : '<div style="padding:40px;text-align:center;font-size:12px;color:var(--hc-muted);">No broadcasts sent yet.</div>';
+
+            document.querySelectorAll('.broadcast-item[data-broadcast-id]').forEach(el => {
+                el.addEventListener('click', () => selectBroadcast(Number(el.dataset.broadcastId)));
+            });
+        }
+
+        function renderBroadcastDetail(broadcast) {
+            const emptyState = document.getElementById('broadcastEmptyState');
+            const container = document.getElementById('broadcastContentContainer');
+            if (emptyState) emptyState.style.display = 'none';
+            container.style.display = 'block';
+
+            document.getElementById('broadcastDetailTitle').textContent = broadcast.title;
+            document.getElementById('broadcastDetailMeta').innerHTML =
+                `${formatTime(broadcast.createdAt)} · ${escapeHtml(broadcast.createdByName || 'HR')} · ` +
+                `<span class="detail-badge"><span class="material-icons-round">done</span>${broadcast.deliveredCount || 0} delivered</span> ` +
+                `<span class="detail-badge"><span class="material-icons-round">visibility</span>${broadcast.readCount || 0} read</span>`;
+
+            document.getElementById('broadcastContentText').textContent = broadcast.content;
+            const attachDiv = document.getElementById('broadcastAttachments');
+            attachDiv.innerHTML = attachmentList(broadcast.attachments || []);
+
+            // Comments
+            const commentsDiv = document.getElementById('broadcastComments');
+            const countBadge = document.getElementById('commentCountBadge');
+            fetchComments(broadcast.id).then(comments => {
+                countBadge.textContent = comments ? comments.length : 0;
+                commentsDiv.innerHTML = comments && comments.length ?
+                    comments.map(c => `
+                        <div class="comment">
+                            <div class="comment-avatar">${initials(c.employeeName)}</div>
+                            <div class="comment-body">
+                                <div class="comment-header">
+                                    <span class="comment-author">${escapeHtml(c.employeeName)}</span>
+                                    <span class="comment-time">${formatTime(c.createdAt)}</span>
+                                </div>
+                                <div class="comment-text">${escapeHtml(c.content)}</div>
+                            </div>
+                        </div>
+                    `).join('') :
+                    `<p style="color:var(--hc-muted);font-size:12px;padding:8px 0;">No comments yet.</p>`;
+            });
+
+            if (stompClient && stompClient.connected) {
+                if (activeCommentSubscription) activeCommentSubscription.unsubscribe();
+                if (activeReceiptSubscription) activeReceiptSubscription.unsubscribe();
+                activeCommentSubscription = stompClient.subscribe('/topic/hr-broadcasts/' + broadcast.id + '/comments', handleComment);
+                activeReceiptSubscription = stompClient.subscribe('/topic/hr-broadcasts/' + broadcast.id + '/receipts', handleReceipt);
+            }
+        }
+
+        function clearBroadcastDetail() {
+            const emptyState = document.getElementById('broadcastEmptyState');
+            const container = document.getElementById('broadcastContentContainer');
+            if (emptyState) emptyState.style.display = 'grid';
+            container.style.display = 'none';
+            document.getElementById('broadcastDetailTitle').textContent = 'Select a broadcast';
+            document.getElementById('broadcastDetailMeta').textContent = 'View its content and comments, or create a new one below.';
+            if (activeCommentSubscription) { activeCommentSubscription.unsubscribe(); activeCommentSubscription = null; }
+            if (activeReceiptSubscription) { activeReceiptSubscription.unsubscribe(); activeReceiptSubscription = null; }
+        }
+
+        async function fetchComments(broadcastId) {
+            try {
+                return await json('/communication/broadcasts/' + broadcastId + '/comments');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        async function selectBroadcast(id) {
+            const broadcast = broadcasts.find(b => b.id === id);
+            if (!broadcast) return;
+            selectedBroadcast = broadcast;
+            renderBroadcastList();
+            renderBroadcastDetail(broadcast);
+        }
+
+        function handleComment(message) {
+            const comment = JSON.parse(message.body);
+            if (selectedBroadcast && selectedBroadcast.id === comment.broadcastId) {
+                const commentsDiv = document.getElementById('broadcastComments');
+                const countBadge = document.getElementById('commentCountBadge');
+                if (commentsDiv.textContent.includes('No comments yet.')) commentsDiv.innerHTML = '';
+                commentsDiv.insertAdjacentHTML('beforeend', `
+                    <div class="comment" style="animation:commentSlide .2s ease;">
+                        <div class="comment-avatar">${initials(comment.employeeName)}</div>
+                        <div class="comment-body">
+                            <div class="comment-header">
+                                <span class="comment-author">${escapeHtml(comment.employeeName)}</span>
+                                <span class="comment-time">${formatTime(comment.createdAt)}</span>
+                            </div>
+                            <div class="comment-text">${escapeHtml(comment.content)}</div>
+                        </div>
+                    </div>
+                `);
+                commentsDiv.scrollTop = commentsDiv.scrollHeight;
+                const current = parseInt(countBadge.textContent) || 0;
+                countBadge.textContent = current + 1;
+            }
+        }
+
+        function handleReceipt(message) {
+            const updated = JSON.parse(message.body);
+            broadcasts = broadcasts.map(b => b.id === updated.id ? updated : b);
+            if (selectedBroadcast && selectedBroadcast.id === updated.id) {
+                selectedBroadcast = updated;
+                document.getElementById('broadcastDetailMeta').innerHTML =
+                    `${formatTime(updated.createdAt)} · ${escapeHtml(updated.createdByName || 'HR')} · ` +
+                    `<span class="detail-badge"><span class="material-icons-round">done</span>${updated.deliveredCount || 0} delivered</span> ` +
+                    `<span class="detail-badge"><span class="material-icons-round">visibility</span>${updated.readCount || 0} read</span>`;
+                renderBroadcastList();
+            }
+            renderBroadcastList();
+            renderMetrics();
+        }
+
+        // ── Create broadcast ──
+        document.getElementById('broadcastCreateForm').addEventListener('submit', async event => {
+            event.preventDefault();
+            const title = document.getElementById('broadcastCreateTitle').value.trim();
+            const content = document.getElementById('broadcastCreateContent').value.trim();
+            const statusEl = document.getElementById('broadcastCreateStatus');
+            const sendBtn = document.getElementById('broadcastSendBtn');
+
+            if (!title || !content) {
+                statusEl.textContent = 'Title and content required.';
+                statusEl.className = 'status-text error';
+                return;
+            }
+            sendBtn.disabled = true;
+            statusEl.textContent = 'Sending…';
+            statusEl.className = 'status-text';
+
+            try {
+                const response = await sendBroadcast(title, content);
+                if (!response.ok) throw new Error(await response.text());
+                const broadcast = await response.json();
+                broadcasts = [broadcast, ...broadcasts.filter(b => b.id !== broadcast.id)];
+                renderBroadcastList();
+                renderMetrics();
+                document.getElementById('broadcastCreateTitle').value = '';
+                document.getElementById('broadcastCreateContent').value = '';
+                selectedBroadcastFiles = [];
+                renderBroadcastCreateAttachments();
+                statusEl.textContent = 'Broadcast sent! ✓';
+                statusEl.className = 'status-text success';
+                selectBroadcast(broadcast.id);
+            } catch (error) {
+                statusEl.textContent = 'Failed to send. Please try again.';
+                statusEl.className = 'status-text error';
+            } finally {
+                sendBtn.disabled = false;
+            }
+        });
+
+        async function sendBroadcast(title, content) {
+            if (selectedBroadcastFiles.length === 0) {
+                return fetch('/communication/broadcasts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, content })
+                });
+            }
+            const form = new FormData();
+            form.append('title', title);
+            form.append('content', content);
+            selectedBroadcastFiles.forEach(f => form.append('files', f));
+            return fetch('/communication/broadcasts', { method: 'POST', body: form });
+        }
+
+        function renderBroadcastCreateAttachments() {
+            const tray = document.getElementById('broadcastCreateAttachmentTray');
+            tray.innerHTML = selectedBroadcastFiles.map((f, i) =>
+                '<span class="attachment-pill"><span class="material-icons-round" style="font-size:13px;">attach_file</span><span class="truncate">' + escapeHtml(f.name) + '</span><button type="button" onclick="removeBroadcastCreateFile(' + i + ')" title="Remove" style="background:none;border:0;cursor:pointer;color:var(--hc-muted);"><span class="material-icons-round" style="font-size:13px;">close</span></button></span>'
+            ).join('');
+        }
+
+        function removeBroadcastCreateFile(index) {
+            selectedBroadcastFiles = selectedBroadcastFiles.filter((_, i) => i !== index);
+            renderBroadcastCreateAttachments();
+        }
+        window.removeBroadcastCreateFile = removeBroadcastCreateFile;
+
+        document.getElementById('attachBroadcastCreateBtn').addEventListener('click', () => document.getElementById(
+            'broadcastCreateFiles').click());
+        document.getElementById('broadcastCreateFiles').addEventListener('change', () => {
+            selectedBroadcastFiles = Array.from(document.getElementById('broadcastCreateFiles').files || []).slice(0, 5);
+            renderBroadcastCreateAttachments();
+        });
+
+        // ── Direct contacts ──
+        function renderDirectContacts() {
+            const rows = document.getElementById('directPeopleRows');
+            if (!rows) return;
+            const search = document.getElementById('directSearch').value.toLowerCase();
+            let filtered = sortDirectContacts(directContacts).filter(c =>
+                !search || c.fullName.toLowerCase().includes(search) || (c.department || '').toLowerCase().includes(search)
+            );
+            if (currentFilter === 'unread') filtered = filtered.filter(c => c.unreadCount > 0);
+            else if (currentFilter === 'online') filtered = filtered.filter(c => c.online);
+
+            if (filtered.length === 0) {
+                rows.innerHTML =
+                    '<div style="padding:32px;text-align:center;font-size:12px;color:var(--hc-muted);">No employees found.</div>';
+                // Only clobber the chat pane if there is no active conversation.
+                if (!selectedDirectContact) renderEmptyState(currentView, search);
+                return;
+            }
+
+            rows.innerHTML = filtered.map(contact => `
+                <button type="button" class="direct-person ${selectedDirectContact && selectedDirectContact.id === contact.id ? 'active' : ''}" data-direct-contact-id="${contact.id}">
+                    <div style="position:relative;">
+                        <div class="person-avatar">${initials(contact.fullName)}</div>
+                        <span class="presence-dot ${contact.online ? 'online' : ''}"></span>
+                    </div>
+                    <div class="person-copy">
+                        <div class="person-top">
+                            <p class="person-name">${escapeHtml(contact.fullName)}</p>
+                            ${contact.unreadCount > 0 ? '<span class="unread-badge">' + contact.unreadCount + '</span>' : ''}
+                        </div>
+                        <div class="person-bottom">
+                            <p class="person-preview">${escapeHtml(contact.lastMessage || contact.department || 'Unassigned')}</p>
+                            ${contact.lastMessageAt ? '<span class="person-time">' + formatShortTime(contact.lastMessageAt) + '</span>' : ''}
+                        </div>
+                    </div>
+                </button>
+            `).join('');
+
+            document.querySelectorAll('[data-direct-contact-id]').forEach(button => {
+                button.addEventListener('click', () => selectDirectContact(Number(button.dataset.directContactId)));
+            });
+
+            if (!selectedDirectContact) {
+                renderEmptyState(currentView);
+            }
+        }
+
+        function sortDirectContacts(list) {
+            return [...list].sort((a, b) => {
+                const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+                const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+                if (aTime !== bTime) return bTime - aTime;
+                if (a.online !== b.online) return a.online ? -1 : 1;
+                return (a.fullName || '').localeCompare(b.fullName || '');
+            });
+        }
+
+        function renderEmptyState(view, searchTerm) {
+            const container = document.getElementById('directMessages');
+            let title = 'No items found';
+            let description = 'Try adjusting your search or filter.';
+            let icon = 'inbox';
+
+            if (searchTerm) {
+                title = 'No results found';
+                description = `We couldn't find anything matching "${escapeHtml(searchTerm)}".`;
+                icon = 'search';
+            } else {
+                switch (view) {
+                    case 'inbox':
+                        title = 'Your inbox is empty';
+                        description = 'When you receive messages from employees, they will appear here.';
+                        icon = 'inbox';
+                        break;
+                    case 'mentions':
+                        title = 'No mentions yet';
+                        description = 'When someone mentions you in a broadcast or message, it will show up here.';
+                        icon = 'alternate_email';
+                        break;
+                    case 'sent':
+                        title = 'No sent messages';
+                        description = 'Messages you send to employees will appear here for reference.';
+                        icon = 'send';
+                        break;
+                    default:
+                        title = 'Select an employee';
+                        description = 'Choose a conversation from your inbox to start messaging.';
+                        icon = 'forum';
+                }
+            }
+
+            container.innerHTML = `<div class="empty-state">
+                <div>
+                    <span class="material-icons-round">${icon}</span>
+                    <p>${title}</p>
+                    <p>${description}</p>
+                </div>
+            </div>`;
+        }
+
+        // ── Select Direct Contact ──
+        async function selectDirectContact(contactId) {
+            selectedDirectContact = directContacts.find(c => c.id === contactId);
+            if (!selectedDirectContact) return;
+            window.selectedDirectContact = selectedDirectContact;   // was never assigned before
+            selectedDirectContact.unreadCount = 0;
+            document.getElementById('directChatAvatar').textContent = initials(selectedDirectContact.fullName);
+            document.getElementById('directChatName').textContent = selectedDirectContact.fullName;
+            document.getElementById('directChatMeta').textContent = (selectedDirectContact.online ? 'Online' : 'Offline') +
+                ' · ' + (selectedDirectContact.department || 'Unassigned');
+            document.getElementById('directMessageInput').disabled = false;
+            document.getElementById('sendDirectMessageBtn').disabled = false;
+            document.getElementById('sendDirectMessageBtn').style.opacity = '1';
+            document.getElementById('attachDirectFileBtn').disabled = false;
+            renderDirectContacts();
+
+            const conversation = directConversations.find(c => c.otherParticipant && c.otherParticipant.id === contactId) ||
+                (selectedDirectContact.conversationId ? { id: selectedDirectContact.conversationId } : null);
+            if (!conversation) {
+                document.getElementById('directMessages').innerHTML = `
+                    <div class="empty-state" style="min-height:auto;flex:1;">
+                        <div>
+                            <span class="material-icons-round">chat_bubble</span>
+                            <p>No messages yet</p>
+                            <p>Send the first message to start the conversation.</p>
+                        </div>
+                    </div>`;
+                return;
+            }
+            try {
+                const messages = await json('/communication/conversations/' + conversation.id + '/messages');
+                renderDirectMessages(messages);
+            } catch (e) {
+                document.getElementById('directMessages').innerHTML = `
+                    <div class="empty-state" style="min-height:auto;flex:1;">
+                        <div>
+                            <span class="material-icons-round">error</span>
+                            <p>Could not load messages</p>
+                            <p>Please try again later.</p>
+                        </div>
+                    </div>`;
+            }
+        }
+
+        function directMessageTemplate(message) {
+            const mine = message.senderId === currentEmployeeId ||
+                (message.senderEmployeeNumber && message.senderEmployeeNumber === currentEmployeeNumber);
+
+            let senderName = message.senderName || message.employeeName;
+            if (!senderName && message.senderId) {
+                const contact = directContacts.find(c => c.id === message.senderId);
+                if (contact) senderName = contact.fullName;
+            }
+            if (!senderName) senderName = 'Employee';
+
+            const senderInitials = initials(senderName);
+
+            let html = '<div class="message-row ' + (mine ? 'mine' : '') + '">';
+
+            if (!mine) {
+                html += '<div class="message-mini-avatar">' + senderInitials + '</div>';
+            }
+
+            html += '<div class="message-stack">';
+
+            if (!mine) {
+                html += '<div class="message-author">' + escapeHtml(senderName) + '</div>';
+            }
+
+            if (message.content && message.content.trim()) {
+                html += '<div class="message-bubble">' + escapeHtml(message.content) + '</div>';
+            }
+
+            if (message.attachments && message.attachments.length > 0) {
+                html += attachmentList(message.attachments);
+            }
+
+            html += '<div class="message-meta">' + formatTime(message.createdAt);
+            if (mine && message.deliveredAt) {
+                html += ' · Delivered';
+            }
+            html += '</div>';
+
+            html += '</div></div>';
+            return html;
+        }
+
+        function renderDirectMessages(history) {
+            const rows = document.getElementById('directMessages');
+            rows.innerHTML = history && history.length ? history.map(directMessageTemplate).join('') : `
+                <div class="empty-state" style="min-height:auto;flex:1;">
+                    <div>
+                        <span class="material-icons-round">chat_bubble</span>
+                        <p>No messages yet</p>
+                        <p>Send the first message to start the conversation.</p>
+                    </div>
+                </div>`;
+            rows.scrollTop = rows.scrollHeight;
+        }
+
+        // ── Send direct message ──
+        async function sendDirectMessage(content, recipientId) {
+            if (stompClient && stompClient.connected) {
+                stompClient.publish({
+                    destination: '/app/chat.send',
+                    body: JSON.stringify({ recipientEmployeeId: recipientId, content })
+                });
+                return true;
+            }
+            try {
+                const response = await fetch('/communication/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ recipientEmployeeId: recipientId, content })
+                });
+                if (!response.ok) throw new Error(await response.text());
+                const newMsg = await response.json();
+                const rows = document.getElementById('directMessages');
+                if (rows.querySelector('.empty-state')) rows.innerHTML = '';
+                rows.insertAdjacentHTML('beforeend', directMessageTemplate(newMsg));
+                rows.scrollTop = rows.scrollHeight;
+                return true;
+            } catch (e) {
+                console.error('Failed to send message via REST:', e);
+                return false;
+            }
+        }
+
+        // ── available members ──
+        async function loadAvailableMembers() {
+            try {
+                availableMembers = await json('/communication/groups/available-members');
+                renderMemberDropdown();
+                renderMeetingParticipants();
+            } catch (error) {
+                const el = document.getElementById('hrGroupStatus');
+                if (el) el.textContent = 'Could not load available members.';
+            }
+        }
+
+        function renderMemberDropdown() {
+            const list = document.getElementById('memberDropdownList');
+            if (!list) return;
+            list.innerHTML = availableMembers.map(m => `
+                <label class="member-dropdown-item" role="option" data-id="${m.id}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;">
+                    <input type="checkbox" class="member-dropdown-checkbox" value="${m.id}" style="width:15px;height:15px;">
+                    <div class="person-avatar" style="width:28px;height:28px;font-size:9px;">${initials(m.fullName)}</div>
+                    <div class="min-w-0 flex-1">
+                        <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(m.fullName)}</div>
+                        <div style="font-size:10px;color:var(--hc-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(m.department || 'Unassigned')}</div>
+                    </div>
+                </label>`).join('');
+            list.querySelectorAll('.member-dropdown-checkbox').forEach(cb => cb.addEventListener('change', handleMemberSelect));
+            list.querySelectorAll('.member-dropdown-item').forEach(item => {
+                item.addEventListener('click', e => {
+                    if (e.target.type !== 'checkbox') {
+                        const cb = item.querySelector('input[type="checkbox"]');
+                        cb.checked = !cb.checked;
+                        handleMemberSelect({ target: cb });
+                    }
+                });
+            });
+        }
+
+        function handleMemberSelect(e) {
+            const checkbox = e.target;
+            const memberId = Number(checkbox.value);
+            const member = availableMembers.find(m => m.id === memberId);
+            if (!member) return;
+            const tagsContainer = document.getElementById('selectedMembersTags');
+            const hiddenInput = document.getElementById('hrMemberIds');
+            const footer = document.getElementById('memberDropdownFooter');
+            const countEl = document.getElementById('selectedCount');
+            const placeholder = document.getElementById('memberDropdownPlaceholder');
+            let selectedIds = hiddenInput.value ? hiddenInput.value.split(',').map(Number) : [];
+            if (checkbox.checked) {
+                if (!selectedIds.includes(memberId)) selectedIds.push(memberId);
+            } else {
+                selectedIds = selectedIds.filter(id => id !== memberId);
+            }
+            hiddenInput.value = selectedIds.join(',');
+            tagsContainer.innerHTML = selectedIds.map(id => {
+                const m = availableMembers.find(x => x.id === id);
+                if (!m) return '';
+                return '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full" style="background:var(--hc-blue-soft);color:var(--hc-blue);font-size:11px;">' +
+                    escapeHtml(m.fullName) +
+                    '<button type="button" class="member-tag-remove" data-id="' + id +
+                    '" style="margin-left:4px;cursor:pointer;background:none;border:0;color:inherit;font-size:14px;line-height:1;">&times;</button></span>';
+            }).join('');
+            tagsContainer.querySelectorAll('.member-tag-remove').forEach(btn => {
+                btn.addEventListener('click', e2 => {
+                    e2.stopPropagation();
+                    const id = Number(btn.dataset.id);
+                    const cb = document.getElementById('memberDropdownList')?.querySelector(
+                        '.member-dropdown-checkbox[value="' + id + '"]');
+                    if (cb) { cb.checked = false;
+                        handleMemberSelect({ target: cb }); }
+                });
+            });
+            countEl.textContent = selectedIds.length;
+            footer.classList.toggle('hidden', selectedIds.length === 0);
+            placeholder.textContent = selectedIds.length > 0 ? selectedIds.length + ' employee' + (selectedIds.length > 1 ?
+                's' : '') + ' selected' : 'Select employees…';
+        }
+
+        // ── Group-member dropdown ──
+        function toggleMemberDropdown() {
+            const panel  = document.getElementById('memberDropdownPanel');
+            const toggle = document.getElementById('memberDropdownToggle');
+            memberDropdownOpen = !memberDropdownOpen;
+            panel.classList.toggle('hidden', !memberDropdownOpen);
+            toggle.setAttribute('aria-expanded', String(memberDropdownOpen));
+            if (memberDropdownOpen) {
+                const search = document.getElementById('memberDropdownSearch');
+                if (search) { search.value = ''; search.focus(); filterMemberDropdown(); }
+            }
+        }
+
+        function filterMemberDropdown() {
+            const term = (document.getElementById('memberDropdownSearch')?.value || '').toLowerCase();
+            document.querySelectorAll('#memberDropdownList .member-dropdown-item').forEach(item => {
+                const text = (item.textContent || '').toLowerCase();
+                item.style.display = (!term || text.includes(term)) ? 'flex' : 'none';
+            });
+        }
+
+        function closeMemberDropdown() {
+            if (!memberDropdownOpen) return;
+            memberDropdownOpen = false;
+            document.getElementById('memberDropdownPanel')?.classList.add('hidden');
+            document.getElementById('memberDropdownToggle')?.setAttribute('aria-expanded', 'false');
+        }
+
+        function renderMeetingParticipants() {
+            const dropdown = document.getElementById('meetingParticipantsDropdown');
+            if (!dropdown) return;
+
+            const list = document.getElementById('meetingParticipantsList');
+            if (!list) return;
+
+            const selected = getSelectedMeetingParticipants();
+
+            if (availableMembers.length === 0) {
+                list.innerHTML = '<div class="meeting-participants-empty">No employees available.</div>';
+                return;
+            }
+
+            list.innerHTML = availableMembers.map(m => `
+                <label class="meeting-participants-item" data-id="${m.id}">
+                    <input type="checkbox" class="meeting-participants-checkbox" value="${m.id}" ${selected.includes(m.id) ? 'checked' : ''}>
+                    <div class="meeting-participants-item-avatar">${initials(m.fullName)}</div>
+                    <div class="meeting-participants-item-content">
+                        <p class="meeting-participants-item-name">${escapeHtml(m.fullName)}</p>
+                        <p class="meeting-participants-item-dept">${escapeHtml(m.department || 'Unassigned')}</p>
+                    </div>
+                </label>
+            `).join('');
+
+            list.querySelectorAll('.meeting-participants-checkbox').forEach(cb => {
+                cb.addEventListener('change', handleMeetingParticipantSelect);
+            });
+
+            list.querySelectorAll('.meeting-participants-item').forEach(item => {
+                item.addEventListener('click', e => {
+                    if (e.target.tagName !== 'INPUT') {
+                        const cb = item.querySelector('input[type="checkbox"]');
+                        cb.checked = !cb.checked;
+                        handleMeetingParticipantSelect({ target: cb });
+                    }
+                });
+            });
+        }
+
+        // ── meeting participants dropdown ──
+        function getSelectedMeetingParticipants() {
+            const input = document.getElementById('meetingParticipantIds');
+            if (!input) return [];
+            return input.value ? input.value.split(',').map(Number) : [];
+        }
+
+        function renderMeetingParticipantsTags() {
+            const tagsContainer = document.getElementById('meetingParticipantsTags');
+            const hiddenInput = document.getElementById('meetingParticipantIds');
+            const selected = getSelectedMeetingParticipants();
+
+            tagsContainer.innerHTML = selected.map(id => {
+                const m = availableMembers.find(x => x.id === id);
+                if (!m) return '';
+                return `<span class="meeting-participants-tag">
+                    ${escapeHtml(m.fullName)}
+                    <button type="button" class="tag-remove" data-id="${id}" style="cursor:pointer;">
+                        <span class="material-icons-round" style="font-size:14px;">close</span>
+                    </button>
+                </span>`;
+            }).join('');
+
+            tagsContainer.querySelectorAll('.tag-remove').forEach(btn => {
+                btn.addEventListener('click', e => {
+                    e.stopPropagation();
+                    const id = Number(btn.dataset.id);
+                    const cb = document.querySelector(`.meeting-participants-checkbox[value="${id}"]`);
+                    if (cb) {
+                        cb.checked = false;
+                        handleMeetingParticipantSelect({ target: cb });
+                    }
+                });
+            });
+        }
+
+        function handleMeetingParticipantSelect(e) {
+            const checkbox = e.target;
+            const memberId = Number(checkbox.value);
+            const hiddenInput = document.getElementById('meetingParticipantIds');
+            let selectedIds = getSelectedMeetingParticipants();
+
+            if (checkbox.checked) {
+                if (!selectedIds.includes(memberId)) selectedIds.push(memberId);
+            } else {
+                selectedIds = selectedIds.filter(id => id !== memberId);
+            }
+
+            hiddenInput.value = selectedIds.join(',');
+            renderMeetingParticipantsTags();
+        }
+
+        function toggleMeetingParticipantsDropdown() {
+            const panel = document.getElementById('meetingParticipantsPanel');
+            meetingParticipantsDropdownOpen = !meetingParticipantsDropdownOpen;
+            panel.classList.toggle('hidden', !meetingParticipantsDropdownOpen);
+            if (meetingParticipantsDropdownOpen) {
+                document.getElementById('meetingParticipantsSearch').focus();
+                renderMeetingParticipants();
+            }
+        }
+
+        function filterMeetingParticipantsDropdown() {
+            const search = document.getElementById('meetingParticipantsSearch').value.toLowerCase();
+            document.querySelectorAll('.meeting-participants-item').forEach(item => {
+                const name = item.querySelector('.meeting-participants-item-name')?.textContent.toLowerCase() || '';
+                const dept = item.querySelector('.meeting-participants-item-dept')?.textContent.toLowerCase() || '';
+                item.classList.toggle('hidden', !(!search || name.includes(search) || dept.includes(search)));
+            });
+        }
+
+        // Setup meeting participants dropdown events
+        document.getElementById('meetingParticipantsField')?.addEventListener('click', (e) => {
+            // Clicking the search input inside the field must not immediately close the panel
+            if (e.target.id === 'meetingParticipantsSearch' && meetingParticipantsDropdownOpen) return;
+            toggleMeetingParticipantsDropdown();
+        });
+        document.getElementById('meetingParticipantsSearch')?.addEventListener('input', filterMeetingParticipantsDropdown);
+
+        document.addEventListener('click', e => {
+            const dropdown = document.getElementById('meetingParticipantsDropdown');
+            if (meetingParticipantsDropdownOpen && dropdown && !dropdown.contains(e.target)) {
+                toggleMeetingParticipantsDropdown();
+            }
+            const memberDropdown = document.getElementById('memberDropdown');
+            if (memberDropdownOpen && memberDropdown && !memberDropdown.contains(e.target)) {
+                closeMemberDropdown();
+            }
+        });
+
+        // ── direct message form ──
+        document.getElementById('directMessageForm')?.addEventListener('submit', async event => {
+            event.preventDefault();
+            const input = document.getElementById('directMessageInput');
+            const content = input.value.trim();
+            if (!selectedDirectContact || (!content && selectedDirectFiles.length === 0)) return;
+            if (selectedDirectFiles.length > 0) {
+                await sendDirectMessageWithAttachments(content);
+                return;
+            }
+            const success = await sendDirectMessage(content, selectedDirectContact.id);
+            if (success) {
+                input.value = '';
+            }
+        });
+
+        async function sendDirectMessageWithAttachments(content) {
+            const form = new FormData();
+            form.append('recipientEmployeeId', selectedDirectContact.id);
+            form.append('content', content);
+            selectedDirectFiles.forEach(f => form.append('files', f));
+            const response = await fetch('/communication/messages', { method: 'POST', body: form });
+            if (!response.ok) {
+                document.getElementById('directChatStatus').textContent = 'Message could not be sent.';
+                return;
+            }
+            const newMsg = await response.json();
+            const rows = document.getElementById('directMessages');
+            if (rows.querySelector('.empty-state')) rows.innerHTML = '';
+            rows.insertAdjacentHTML('beforeend', directMessageTemplate(newMsg));
+            rows.scrollTop = rows.scrollHeight;
+            document.getElementById('directMessageInput').value = '';
+            selectedDirectFiles = [];
+            document.getElementById('directMessageFiles').value = '';
+            renderSelectedDirectFiles();
+        }
+
+        document.getElementById('attachDirectFileBtn')?.addEventListener('click', () => document.getElementById(
+            'directMessageFiles').click());
+        document.getElementById('directMessageFiles')?.addEventListener('change', () => {
+            selectedDirectFiles = Array.from(document.getElementById('directMessageFiles').files || []).slice(0, 5);
+            renderSelectedDirectFiles();
+        });
+
+        // ── group attachment picker ──
+        document.getElementById('attachGroupFileBtn')?.addEventListener('click', () => document.getElementById(
+            'groupMessageFiles').click());
+        document.getElementById('groupMessageFiles')?.addEventListener('change', () => {
+            selectedGroupFiles = Array.from(document.getElementById('groupMessageFiles').files || []).slice(0, 5);
+            renderGroupAttachments();
+        });
+
+        function renderSelectedDirectFiles() {
+            const tray = document.getElementById('directAttachmentTray');
+            if (!tray) return;
+            tray.classList.toggle('hidden', selectedDirectFiles.length === 0);
+            tray.innerHTML = selectedDirectFiles.map((f, i) =>
+                '<span class="attachment-pill"><span class="material-icons-round" style="font-size:13px;">attach_file</span><span class="truncate">' + escapeHtml(f.name) + '</span><button type="button" onclick="removeSelectedDirectFile(' + i + ')" title="Remove" style="background:none;border:0;cursor:pointer;color:var(--hc-muted);"><span class="material-icons-round" style="font-size:13px;">close</span></button></span>'
+            ).join('');
+        }
+
+        function removeSelectedDirectFile(index) {
+            selectedDirectFiles = selectedDirectFiles.filter((_, i) => i !== index);
+            renderSelectedDirectFiles();
+        }
+        window.removeSelectedDirectFile = removeSelectedDirectFile;
+
+        // ── meeting form ──
+        document.getElementById('meetingInstant')?.addEventListener('change', event => {
+            const timeFields = document.getElementById('meetingTimeFields');
+            const start = document.getElementById('meetingStart');
+            const end = document.getElementById('meetingEnd');
+            if (event.target.checked) {
+                timeFields.style.display = 'none';
+                start.disabled = true;
+                end.disabled = true;
+            } else {
+                timeFields.style.display = 'flex';
+                start.disabled = false;
+                end.disabled = false;
+            }
+        });
+
+        document.getElementById('meetingForm')?.addEventListener('submit', async event => {
+            event.preventDefault();
+            const instant = document.getElementById('meetingInstant').checked;
+            const participantEmployeeIds = getSelectedMeetingParticipants();
+            const payload = {
+                provider: document.getElementById('meetingProvider').value,
+                subject: document.getElementById('meetingSubject').value.trim(),
+                agenda: document.getElementById('meetingAgenda').value.trim(),
+                instantMeeting: instant,
+                startTime: instant ? null : document.getElementById('meetingStart').value,
+                endTime: document.getElementById('meetingEnd').value || null,
+                participantEmployeeIds,
+                notifyParticipants: document.getElementById('meetingNotify').checked
+            };
+            if (!payload.subject) {
+                document.getElementById('meetingStatus').textContent = 'Meeting subject is required.';
+                return;
+            }
+            try {
+                document.getElementById('meetingStatus').textContent = 'Creating meeting…';
+                const response = await fetch('/communication/meetings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error(await response.text());
+                const meeting = await response.json();
+                meetings = [meeting, ...meetings.filter(i => i.id !== meeting.id)];
+                renderMeetings();
+                document.getElementById('meetingSubject').value = '';
+                document.getElementById('meetingAgenda').value = '';
+                document.getElementById('meetingInstant').checked = true;
+                document.getElementById('meetingStart').disabled = true;
+                document.getElementById('meetingEnd').disabled = true;
+                document.getElementById('meetingParticipantIds').value = '';
+                document.getElementById('meetingParticipantsTags').innerHTML = '';
+                document.querySelectorAll('.meeting-participants-checkbox').forEach(cb => cb.checked = false);
+                if (meetingParticipantsDropdownOpen) toggleMeetingParticipantsDropdown();
+                document.getElementById('meetingStatus').innerHTML = 'Created. <a href="' + meeting.joinUrl +
+                    '" target="_blank" style="color:var(--hc-blue);font-weight:700;">Open join link</a>';
+                closeModal(document.getElementById('meetingModal'));
+            } catch (error) {
+                document.getElementById('meetingStatus').textContent = 'Meeting could not be created. Check provider configuration.';
+            }
+        });
+
+        function renderMeetings() {
+            const rows = document.getElementById('meetingRows');
+            if (rows) {
+                const now = new Date();
+                const activeMeetings = meetings.filter(m => {
+                    if (!m.endTime) return true; // Show meetings without end time
+                    const endTime = new Date(m.endTime);
+                    return endTime > now;
+                });
+
+                rows.innerHTML = activeMeetings.length ? activeMeetings.map(m => {
+                    const endTime = m.endTime ? new Date(m.endTime) : null;
+                    const hasEndTime = m.endTime && !isNaN(endTime.getTime());
+                    return `
+                    <div class="meeting-row" data-meeting-id="${m.id}">
+                        <div class="meeting-row-main">
+                            <div class="min-w-0">
+                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                                    <p class="meeting-title">${escapeHtml(m.subject)}</p>
+                                    <span class="meeting-status-badge active">Active</span>
+                                </div>
+                                <div class="meeting-meta">
+                                    <span class="material-icons-round" style="font-size:14px;">video_call</span>
+                                    <span>${escapeHtml(providerLabel(m.provider))}</span>
+                                    <span>•</span>
+                                    <span>${escapeHtml(formatMeetingTime(m))}</span>
+                                    ${(m.participants || []).length > 0 ? `
+                                    <span>•</span>
+                                    <span>${(m.participants || []).length} participant${(m.participants || []).length === 1 ? '' : 's'}</span>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            <div class="meeting-actions">
+                                <a class="hr-secondary" href="${m.joinUrl}" target="_blank" rel="noopener">
+                                    <span class="material-icons-round" style="font-size:13px;">open_in_new</span>
+                                    Join
+                                </a>
+                                ${!hasEndTime ? `
+                                <button class="hr-secondary close-meeting-btn" type="button" data-meeting-id="${m.id}" title="Manually close this meeting">
+                                    <span class="material-icons-round" style="font-size:13px;">close</span>
+                                    Close
+                                </button>
+                                ` : ''}
+                                <button class="hr-primary complete-meeting-btn" type="button" data-meeting-id="${m.id}">
+                                    <span class="material-icons-round" style="font-size:13px;">done</span>
+                                    Complete
+                                </button>
+                            </div>
+                        </div>
+                        <div class="meeting-participants">
+                            ${meetingParticipantsHtml(m.participants || [])}
+                        </div>
+                    </div>`;
+                }).join('') : '<div class="meeting-empty"><span class="material-icons-round">videocam_off</span><p>No active meetings</p><p>Create a meeting to get started.</p></div>';
+
+                rows.querySelectorAll('.complete-meeting-btn').forEach(button => {
+                    button.addEventListener('click', () => completeMeeting(Number(button.dataset.meetingId)));
+                });
+
+                rows.querySelectorAll('.close-meeting-btn').forEach(button => {
+                    button.addEventListener('click', () => completeMeeting(Number(button.dataset.meetingId)));
+                });
+            }
+            document.getElementById('meetingCount').textContent = meetings.length;
+        }
+
+        function meetingParticipantsHtml(participants) {
+            if (!participants.length) {
+                return '<span class="meeting-participant">No participants selected</span>';
+            }
+            return participants.map(p => {
+                const failed = p.notificationError || p.chatStatus === 'FAILED' || p.emailStatus === 'FAILED';
+                const sent = p.chatNotified || p.emailNotified || p.notified;
+                const statusClass = failed ? 'failed' : sent ? 'sent' : '';
+                const statusText = failed ? 'Invite issue' : sent ? 'Invited' : 'Pending';
+                const title = failed ? ` title="${escapeHtml(p.notificationError || 'Notification failed')}"` : '';
+                return `<span class="meeting-participant ${statusClass}"${title}>
+                    <span class="material-icons-round" style="font-size:12px;">person</span>
+                    <span>${escapeHtml(p.employeeName || p.employeeEmail || p.employeeNumber || 'Employee')}</span>
+                    <span>·</span>
+                    <span>${statusText}</span>
+                </span>`;
+            }).join('');
+        }
+
+        async function completeMeeting(meetingId) {
+            if (!meetingId) return;
+            try {
+                const response = await fetch(`/communication/meetings/${meetingId}/complete`, { method: 'POST' });
+                if (!response.ok) throw new Error(await response.text());
+                meetings = meetings.filter(m => m.id !== meetingId);
+                renderMeetings();
+                renderMetrics();
+            } catch (error) {
+                console.warn('Meeting could not be completed:', error);
+            }
+        }
+
+        // ── group form ──
+        document.getElementById('hrGroupForm')?.addEventListener('submit', async event => {
+            event.preventDefault();
+            const hiddenInput = document.getElementById('hrMemberIds');
+            const memberEmployeeIds = hiddenInput.value ? hiddenInput.value.split(',').map(Number).filter(n => !isNaN(n)) :
+                [];
+            try {
+                const response = await fetch('/communication/groups', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: document.getElementById('hrGroupName').value,
+                        description: document.getElementById('hrGroupDescription').value,
+                        memberEmployeeIds
+                    })
+                });
+                if (!response.ok) throw new Error(await response.text());
+                const group = await response.json();
+                groups = [group, ...groups.filter(i => i.id !== group.id)];
+                renderGroups();
+                renderGroupList();
+                document.getElementById('hrGroupName').value = '';
+                document.getElementById('hrGroupDescription').value = '';
+                hiddenInput.value = '';
+                document.getElementById('selectedMembersTags').innerHTML = '';
+                document.getElementById('memberDropdownPlaceholder').textContent = 'Select employees…';
+                document.getElementById('selectedCount').textContent = '0';
+                document.getElementById('memberDropdownFooter').classList.add('hidden');
+                document.querySelectorAll('.member-dropdown-checkbox').forEach(cb => cb.checked = false);
+                document.getElementById('hrGroupStatus').textContent = 'Group created.';
+                closeMemberDropdown();
+                closeModal(document.getElementById('groupModal'));
+            } catch (error) {
+                document.getElementById('hrGroupStatus').textContent = 'Group could not be created. Check members and try again.';
+            }
+        });
+
+        // ── WebSocket ──
+        function connectSocket() {
+            stompClient = new StompJs.Client({
+                webSocketFactory: () => new SockJS('/ws'),
+                reconnectDelay: 3000,
+                onConnect: () => {
+                    const sendStatus = document.getElementById('sendStatus');
+                    if (sendStatus) sendStatus.textContent = 'Connected and ready.';
+                    stompClient.subscribe('/user/queue/messages', handleIncomingDirectMessage);
+                    stompClient.subscribe('/topic/hr-inbox', handleIncomingDirectMessage);
+                    stompClient.subscribe('/topic/hr-broadcasts', handleBroadcast);
+                    stompClient.subscribe('/topic/presence', handlePresence);
+                    stompClient.subscribe('/topic/chat-groups', handleGroupSummary);
+                    if (selectedBroadcast) selectBroadcast(selectedBroadcast.id);
+                    if (selectedGroup) {
+                        if (activeGroupSubscription) activeGroupSubscription.unsubscribe();
+                        activeGroupSubscription = stompClient.subscribe('/topic/chat-groups/' + selectedGroup.id + '/messages', handleGroupMessage);
+                    }
+                }
+            });
+            stompClient.activate();
+        }
+
+        function handleIncomingDirectMessage(message) {
+            const payload = JSON.parse(message.body);
+            if (rememberMessageId(payload.id)) return;   // ignore duplicate echo
+            const isMine = payload.senderId === currentEmployeeId;
+            const otherId = isMine ? payload.recipientId : payload.senderId;
+            let contact = directContacts.find(c => c.id === otherId);
+            if (!contact) {
+                // Create minimal contact from WebSocket payload for new conversations.
+                // NOTE: the id must be `otherId`, not `payload.senderId` (which is us when echoed).
+                contact = {
+                    id: otherId,
+                    employeeNumber: isMine ? null : payload.senderEmployeeNumber,
+                    fullName: isMine ? 'Employee' : (payload.senderName || 'Employee'),
+                    email: null,
+                    department: null,
+                    online: true,
+                    unreadCount: isMine ? 0 : 1,
+                    conversationId: payload.conversationId,
+                    lastMessage: payload.content,
+                    lastMessageAt: payload.createdAt,
+                    hasConversation: true
+                };
+                directContacts.unshift(contact);
+            } else if (!isMine && (!selectedDirectContact || selectedDirectContact.id !== otherId)) {
+                contact.unreadCount = (contact.unreadCount || 0) + 1;
+            }
+            upsertDirectConversation(payload, contact);
+            if (selectedDirectContact && selectedDirectContact.id === otherId) {
+                const rows = document.getElementById('directMessages');
+                if (rows.querySelector('.empty-state')) rows.innerHTML = '';
+                rows.insertAdjacentHTML('beforeend', directMessageTemplate(payload));
+                rows.scrollTop = rows.scrollHeight;
+            }
+            renderDirectContacts();
+            renderMetrics();
+        }
+
+        function upsertDirectConversation(message, contact) {
+            if (!contact) return;
+            contact.conversationId = message.conversationId;
+            contact.lastMessage = message.content;
+            contact.lastMessageAt = message.createdAt;
+            contact.hasConversation = true;
+            const existing = directConversations.find(c => c.id === message.conversationId);
+            if (existing) {
+                existing.lastMessage = message;
+                existing.updatedAt = message.createdAt;
+            } else {
+                directConversations.unshift({ id: message.conversationId, otherParticipant: contact, lastMessage: message,
+                    updatedAt: message.createdAt });
+            }
+            directConversations.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+        }
+
+        function handleGroupSummary(message) {
+            const group = JSON.parse(message.body);
+            groups = [group, ...groups.filter(i => i.id !== group.id)];
+            renderGroups();
+            renderGroupList();
+        }
+
+        function handlePresence(message) {
+            const presence = JSON.parse(message.body);
+            onlineEmployees = onlineEmployees.filter(i => i.employeeId !== presence.employeeId);
+            if (presence.online) onlineEmployees.push(presence);
+            onlineEmployees.sort((a, b) => a.fullName.localeCompare(b.fullName));
+            directContacts = directContacts.map(c => c.id === presence.employeeId ? { ...c, online: presence.online } : c);
+            if (selectedDirectContact && selectedDirectContact.id === presence.employeeId) {
+                selectedDirectContact.online = presence.online;
+                document.getElementById('directChatMeta').textContent = (presence.online ? 'Online' : 'Offline') + ' · ' + (
+                    selectedDirectContact.department || 'Unassigned');
+            }
+            renderOnline();
+            renderDirectContacts();
+            renderMetrics();
+        }
+
+        function handleBroadcast(message) {
+            const broadcast = JSON.parse(message.body);
+            broadcasts = [broadcast, ...broadcasts.filter(b => b.id !== broadcast.id)];
+            if (selectedBroadcast && selectedBroadcast.id === broadcast.id) {
+                selectedBroadcast = broadcast;
+                renderBroadcastDetail(broadcast);
+            }
+            renderBroadcastList();
+            renderMetrics();
+        }
+
+        // ── View switching ──
+        function showMainView(name) {
+            activeMainView = name;
+
+            document.getElementById('directView').classList.toggle('hidden', name !== 'direct');
+            document.getElementById('broadcastView').classList.toggle('active', name === 'broadcasts');
+            document.getElementById('groupsView').classList.toggle('active', name === 'groups');
+            document.getElementById('meetingsView').classList.toggle('active', name === 'meetings');
+
+            ['navBroadcastsSwitch', 'navGroups', 'navMeetings'].forEach(id => {
+                document.getElementById(id)?.classList.remove('active');
+            });
+            if (name === 'broadcasts') document.getElementById('navBroadcastsSwitch')?.classList.add('active');
+            if (name === 'groups') document.getElementById('navGroups')?.classList.add('active');
+            if (name === 'meetings') document.getElementById('navMeetings')?.classList.add('active');
+
+            if (name !== 'broadcasts') {
+                if (activeCommentSubscription) { activeCommentSubscription.unsubscribe(); activeCommentSubscription = null; }
+                if (activeReceiptSubscription) { activeReceiptSubscription.unsubscribe(); activeReceiptSubscription = null; }
+            }
+
+            if (name === 'broadcasts') {
+                renderBroadcastList();
+                if (selectedBroadcast) renderBroadcastDetail(selectedBroadcast); else clearBroadcastDetail();
+            } else if (name === 'groups') {
+                renderGroupList();
+                if (selectedGroup) renderGroupDetail(selectedGroup); else clearGroupDetail();
+            } else if (name === 'meetings') {
+                renderMeetings();
+            }
+        }
+        window.showMainView = showMainView;
+
+        // ── UI interactions ──
+        document.getElementById('refreshBtn')?.addEventListener('click', loadData);
+        document.getElementById('refreshDirectBtn')?.addEventListener('click', loadDirectData);
+        document.getElementById('refreshBroadcastBtn')?.addEventListener('click', () => { loadData(); });
+        document.getElementById('directSearch')?.addEventListener('input', renderDirectContacts);
+
+        document.querySelectorAll('.list-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.list-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                currentFilter = this.dataset.filter || 'all';
+                renderDirectContacts();
+            });
+        });
+
+        function openModal(id) {
+            document.getElementById(id)?.classList.add('open');
+            if (id === 'meetingModal') {
+                renderMeetingParticipants();
+            }
+        }
+
+        function closeModal(modal) {
+            modal?.classList.remove('open');
+            if (modal?.id === 'meetingModal') {
+                if (meetingParticipantsDropdownOpen) toggleMeetingParticipantsDropdown();
+            }
+        }
+
+        document.querySelectorAll('.comm-modal').forEach(modal => {
+            modal.addEventListener('click', e => { if (e.target === modal) closeModal(modal); });
+        });
+        document.querySelectorAll('.modal-close').forEach(btn => {
+            btn.addEventListener('click', () => closeModal(btn.closest('.comm-modal')));
+        });
+
+        // ── Switch between direct, broadcast, groups and meetings views ──
+        document.getElementById('navBroadcastsSwitch').addEventListener('click', () => {
+            showMainView('broadcasts');
+        });
+
+        document.getElementById('navGroups').addEventListener('click', () => {
+            showMainView('groups');
+        });
+
+        document.getElementById('navMeetings').addEventListener('click', () => {
+            showMainView('meetings');
+        });
+
+        // Create group button in the list header
+        document.getElementById('createGroupBtn')?.addEventListener('click', () => openModal('groupModal'));
+        // New meeting button in the meetings view
+        document.getElementById('newMeetingBtn')?.addEventListener('click', () => openModal('meetingModal'));
+
+        // ── Direct Nav Click Handlers ──
+        document.getElementById('navInbox').addEventListener('click', function(e) {
+            e.preventDefault();
+            showMainView('direct');
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+            currentView = 'inbox';
+            document.getElementById('listTitle').textContent = 'Inbox';
+            selectedDirectContact = null;
+            window.selectedDirectContact = null;
+            document.getElementById('directChatAvatar').textContent = '--';
+            document.getElementById('directChatName').textContent = 'Select an employee';
+            document.getElementById('directChatMeta').textContent = 'Choose a conversation from your inbox.';
+            document.getElementById('directMessageInput').disabled = true;
+            document.getElementById('sendDirectMessageBtn').disabled = true;
+            document.getElementById('attachDirectFileBtn').disabled = true;
+            renderDirectContacts();
+        });
+
+        document.getElementById('navMentions').addEventListener('click', function(e) {
+            e.preventDefault();
+            showMainView('direct');
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+            currentView = 'mentions';
+            document.getElementById('listTitle').textContent = 'Mentions';
+            selectedDirectContact = null;
+            window.selectedDirectContact = null;
+            document.getElementById('directChatAvatar').textContent = '--';
+            document.getElementById('directChatName').textContent = 'Select a mention';
+            document.getElementById('directChatMeta').textContent = 'View conversations where you were mentioned.';
+            document.getElementById('directMessageInput').disabled = true;
+            document.getElementById('sendDirectMessageBtn').disabled = true;
+            document.getElementById('attachDirectFileBtn').disabled = true;
+            renderDirectContacts();
+        });
+
+        document.getElementById('navSent').addEventListener('click', function(e) {
+            e.preventDefault();
+            showMainView('direct');
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+            currentView = 'sent';
+            document.getElementById('listTitle').textContent = 'Sent';
+            selectedDirectContact = null;
+            window.selectedDirectContact = null;
+            document.getElementById('directChatAvatar').textContent = '--';
+            document.getElementById('directChatName').textContent = 'Select a sent message';
+            document.getElementById('directChatMeta').textContent = 'View messages you have sent to employees.';
+            document.getElementById('directMessageInput').disabled = true;
+            document.getElementById('sendDirectMessageBtn').disabled = true;
+            document.getElementById('attachDirectFileBtn').disabled = true;
+            renderDirectContacts();
+        });
+
+        document.getElementById('chatBroadcastBtn')?.addEventListener('click', () => {
+            showMainView('broadcasts');
+        });
+
+        document.getElementById('newMessageBtn')?.addEventListener('click', () => document.getElementById('directSearch')
+            ?.focus());
+
+        document.getElementById('chatMeetingBtn')?.addEventListener('click', () => {
+            const name = document.getElementById('directChatName')?.textContent;
+            if (name && name !== 'Select an employee') document.getElementById('meetingSubject').value = 'Meeting with ' +
+                name;
+            openModal('meetingModal');
+        });
+        document.getElementById('chatProfileBtn')?.addEventListener('click', () => {
+            const contact = window.selectedDirectContact;
+            if (contact && contact.id) window.location.href = '/employees/' + contact.id;
+        });
+
+        document.getElementById('directMessageInput')?.addEventListener('input', e => {
+            e.target.style.height = 'auto';
+            e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
+        });
+
+        document.getElementById('directMessageInput')?.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                document.getElementById('directMessageForm')?.requestSubmit();
+            }
+        });
+
+        document.getElementById('memberDropdownToggle')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMemberDropdown();
+        });
+        document.getElementById('memberDropdownSearch')?.addEventListener('input', filterMemberDropdown);
+
+        const outerMain = document.querySelector('main.flex-1');
+        if (outerMain) {
+            outerMain.style.padding = '0';
+            outerMain.style.overflow = 'hidden';
+        }
+
+        // ── bootstrap ──
+        document.addEventListener('DOMContentLoaded', async () => {
+            document.documentElement.classList.add('comm-workspace');
+            document.body.classList.add('comm-workspace');
+
+            await loadData();
+            await loadAvailableMembers();
+            connectSocket();
+
+            window.removeSelectedBroadcastFile = removeBroadcastCreateFile;
+            window.removeSelectedDirectFile = removeSelectedDirectFile;
+            window.selectedDirectContact = null;
+            window.selectDirectContact = selectDirectContact;
+        });
+
+        window.addEventListener('beforeunload', () => {
+            document.documentElement.classList.remove('comm-workspace');
+            document.body.classList.remove('comm-workspace');
+        });
+    </script>
+
+</main>
+</body>
+</html>

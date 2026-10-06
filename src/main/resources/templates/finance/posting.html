@@ -517,10 +517,10 @@
                                     <p class="text-xs text-gray-500 dark:text-gray-400">Total credits</p>
                                     <p class="text-sm font-bold text-gray-900 dark:text-white font-mono">₦${fmt(totalC)}</p>
                                 </div>
-                                <button class="btn-download" onclick="downloadGroupCsv('${key}')">
+                                <a class="btn-download" href="/finance/journals/export?periodId=${rows[0].payrollPeriodId}">
                                     <span class="material-icons-round" style="font-size:16px">download</span>
-                                    CSV
-                                </button>
+                                    Export CSV
+                                </a>
                             </div>
                         </div>
 
@@ -588,53 +588,7 @@
         })();
     </script>
 
-    <!-- Sidebar & theme JS (compatible with layout) -->
-    <script th:inline="none">
-        // Theme toggle (works with the button we added in header)
-        const themeToggle = document.getElementById('themeToggle');
-        if (themeToggle) {
-            const themeIcon = themeToggle.querySelector('.material-icons-round');
-            themeToggle.addEventListener('click', () => {
-                const isDark = document.documentElement.classList.toggle('dark');
-                themeIcon.textContent = isDark ? 'light_mode' : 'dark_mode';
-                localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            });
-            // Initialize
-            if (localStorage.getItem('theme') === 'dark' ||
-                (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.classList.add('dark');
-                themeIcon.textContent = 'light_mode';
-            } else {
-                themeIcon.textContent = 'dark_mode';
-            }
-        }
-
-        // Mobile menu (if toggle exists inside layout, we connect it)
-        const menuToggle = document.getElementById('menuToggle');
-        const mobileOverlay = document.getElementById('mobileOverlay');
-        const sidebar = document.querySelector('.sidebar-container');
-        if (menuToggle && mobileOverlay && sidebar) {
-            menuToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('open');
-                mobileOverlay.classList.toggle('hidden');
-                document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : 'auto';
-            });
-            mobileOverlay.addEventListener('click', () => {
-                sidebar.classList.remove('open');
-                mobileOverlay.classList.add('hidden');
-                document.body.style.overflow = 'auto';
-            });
-        }
-
-        // Close sidebar on window resize
-        window.addEventListener('resize', () => {
-            if (window.innerWidth >= 1024 && sidebar) {
-                sidebar.classList.remove('open');
-                if (mobileOverlay) mobileOverlay.classList.add('hidden');
-                document.body.style.overflow = 'auto';
-            }
-        });
-    </script>
+    <!-- Sidebar, theme and logout JS live in layouts/financialOfficerLayout; do not redeclare them here. -->
 </main>
 </body>
 </html>

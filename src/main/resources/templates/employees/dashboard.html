@@ -266,10 +266,6 @@
                     </div>
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white">Pending Tasks</h3>
                 </div>
-                <a href="/employee/appraisals"
-                   class="inline-flex items-center text-primary-600 hover:text-primary-700 text-sm font-medium">
-                    View All <span class="material-icons-round text-sm ml-1">arrow_forward</span>
-                </a>
             </div>
 
             <!-- Has tasks -->
@@ -300,7 +296,7 @@
                         </p>
                     </div>
 
-                    <a href="/employee/appraisals"
+                    <a href="/employee/performance"
                        th:class="${selfComplete}
                          ? 'px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
                          : 'px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-semibold transition-colors'">
@@ -424,7 +420,7 @@
                 <span class="badge badge-info"
                       th:text="${employeeAppraisals.size()} + ' record(s)'">0</span>
             </div>
-            <a href="/employee/appraisals"
+            <a href="/employee/performance"
                class="inline-flex items-center text-primary-600 hover:text-primary-700 text-sm font-medium">
                 View All <span class="material-icons-round text-sm ml-1">arrow_forward</span>
             </a>

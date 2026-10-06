@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AnonymousConfigurer;
 import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Configuration
+@EnableMethodSecurity
 public class Oauth2SecurityConfig {
     private static final String HR_REGISTRATION_ID = "keycloak";
     private static final String MOBILE_REGISTRATION_ID = "keycloak-mobile";
@@ -36,11 +38,11 @@ public class Oauth2SecurityConfig {
     private static final Set<String> HR_ALLOWED_GROUPS = Set.of(
             "employees",
             "financialofficers",
-            "finance",
             "admin",
             "humanresource",
             "jobhr",
-            "restrictedhr"
+            "restrictedhr",
+            "hiringmanager"
     );
 
     private static final Set<String> MOBILE_ALLOWED_GROUPS = Set.of(
@@ -55,7 +57,7 @@ public class Oauth2SecurityConfig {
         log.debug("Configuring security");
 
         http.securityMatcher("/**")
-                .anonymous(AnonymousConfigurer::disable)
+                .anonymous(Customizer.withDefaults())
                 .sessionManagement(httpSecuritySessionManagementConfigurer ->
                         httpSecuritySessionManagementConfigurer
                                 .sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
@@ -71,6 +73,7 @@ public class Oauth2SecurityConfig {
                 .authorizeHttpRequests(
                         authorize -> {
                             authorize.requestMatchers(new AntPathRequestMatcher("/login")).permitAll();
+                            authorize.requestMatchers(new AntPathRequestMatcher("/careers/**")).permitAll();
                             authorize.requestMatchers(new AntPathRequestMatcher("/mobile/biometric/bootstrap")).permitAll();
                             authorize.requestMatchers(new AntPathRequestMatcher("/mobile/auth/refresh")).permitAll();
                             authorize.requestMatchers(new AntPathRequestMatcher("/mobile/auth/session/login")).permitAll();
