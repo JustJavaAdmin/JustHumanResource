@@ -48,13 +48,13 @@ spring:
       client:
         provider:
           keycloak:
-            issuer-uri: ${ISSUER_URI:https://ngcloak-production.up.railway.app/realms/humanResources-azure}
+            issuer-uri: ${ISSUER_URI:https://ngcloak.justjava.tech/realms/humanResources-azure}
 
           keycloak-mobile:
-            issuer-uri: ${ISSUER_URI_E:https://ngcloak-production.up.railway.app/realms/employees-azure}
+            issuer-uri: ${ISSUER_URI_E:https://ngcloak.justjava.tech/realms/employees-azure}
 
           keycloak-web:
-            issuer-uri: ${ISSUER_URI_E:https://ngcloak-production.up.railway.app/realms/employees-azure}
+            issuer-uri: ${ISSUER_URI_E:https://ngcloak.justjava.tech/realms/employees-azure}
 
         registration:
           keycloak:
@@ -96,7 +96,7 @@ server:
 springdoc:
   pathsToMatch: /api/**
 keycloak:
-  base-url: ${KEYCLOAK_BASE_URI:https://ngcloak-production.up.railway.app}
+  base-url: ${KEYCLOAK_BASE_URI:https://ngcloak.justjava.tech}
   base-realm: humanResources-azure
   client-id: ${KEYCLOAK_CLIENT_ID:humanResources-azure}
   client-secret: ${KEYCLOAK_CLIENT_SECRET:Owg1lFWbx72EZbA0AA5cl95MKdUbzNxsTGfbquI3XilFo2OP6WUBwZasZkyQsEYpCIJLYggcMUGu1B7fCqYAVY}
@@ -166,4 +166,3 @@ meeting:
       default-organizer-email: ${GOOGLE_DEFAULT_ORGANIZER_EMAIL:}
       token-url: ${GOOGLE_TOKEN_URL:https://oauth2.googleapis.com/token}
       meet-base-url: ${GOOGLE_MEET_BASE_URL:https://meet.googleapis.com/v2}
-
